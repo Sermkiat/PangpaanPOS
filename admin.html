@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pangpaan POS — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#fff;color:#0f172a}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:.9rem}
+    .btn{border-radius:.6rem;font-weight:700}
+    .btn-outline{border:1px solid #e5e7eb;background:#fff}
+    .btn-green{background:#22c55e;color:#052e16}
+    .badge{display:inline-block;padding:.2rem .5rem;border-radius:999px;font-size:.75rem;background:#eef2f7;color:#0f172a;border:1px solid #e5e7eb}
+    .dbchip{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.75rem;border:1px solid #e5e7eb;background:#fff}
+    .table th{font-size:.75rem;color:#64748b;text-transform:uppercase}
+    .table td,.table th{padding:.5rem .75rem;white-space:nowrap}
+    .table tbody tr:nth-child(even){background:#fafafa}
+    .drop{border:2px dashed #cbd5e1;border-radius:.8rem}
+    .drop.drag{background:#f8fafc}
+    .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .safe-pad-top{padding-top:constant(safe-area-inset-top);padding-top:env(safe-area-inset-top)}
+    :root{--header-h:0px}
+    .has-fixed-header{padding-top: calc(var(--header-h) + 8px)}
+    @supports (padding-top: max(0px)) {
+      .has-fixed-header{padding-top: calc(max(var(--header-h), env(safe-area-inset-top)) + 8px);}
+    }
+    @media (max-width: 390px){ #form{ gap:.5rem } }
+  </style>
+</head>
+<body class="min-h-screen has-fixed-header overflow-x-hidden">
+  <!-- Top -->
+  <header class="bg-black text-white fixed top-0 left-0 right-0 z-20 safe-pad-top">
+    <div class="mx-auto max-w-7xl px-4 md:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+      <div class="text-xl font-extrabold tracking-tight select-none">
+        <span class="opacity-90">Pangpaan</span>
+        <span class="text-green-400">POS</span>
+      </div>
+      <!-- DB status chip moved, see below -->
+  <!-- Floating DB chip -->
+  <div id="dbChip" class="dbchip fixed right-2 top-[calc(var(--header-h)+6px)] bg-red-50 text-red-700 border-red-300">🔴 DB</div>
+      <nav id="topNav" class="sm:ml-auto mt-1 sm:mt-0 flex items-center gap-4 sm:gap-5 md:gap-6 text-xs sm:text-sm md:text-base overflow-x-auto whitespace-nowrap [-webkit-overflow-scrolling:touch]">
+        <a href="http://127.0.0.1:8888/pos" class="opacity-90 hover:opacity-100">POS</a>
+        <a href="http://127.0.0.1:8888/products" class="opacity-90 hover:opacity-100">Products</a>
+        <a href="http://127.0.0.1:8888/sale" class="opacity-90 hover:opacity-100">Sales History</a>
+        <a href="http://127.0.0.1:8888/admin" class="opacity-90 hover:opacity-100">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 md:px-6 py-6 space-y-6">
+    <!-- Tabs -->
+    <nav class="flex gap-2 text-sm" id="tabs">
+      <button data-tab="manage" class="btn btn-outline px-3 py-2 font-semibold">จัดการสินค้า</button>
+      <button data-tab="help" class="btn btn-outline px-3 py-2">วิธีใช้งาน</button>
+    </nav>
+
+
+
+    <!-- Manage -->
+    <section id="tab-manage" class="hidden space-y-5">
+      <div class="card p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="font-bold text-lg">สินค้าปัจจุบัน</h2>
+            <div class="text-sm text-slate-600">จำนวน <span id="prodCount">0</span> รายการ</div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="search" type="search" placeholder="ค้นหา..." class="px-3 py-2 rounded border w-full md:w-72"/>
+            <button id="btnRefresh" class="btn btn-outline px-3 py-2">รีเฟรช</button>
+          </div>
+        </div>
+        <div class="overflow-auto mt-3">
+          <table class="min-w-full table text-sm">
+            <thead>
+              <tr>
+                <th>Image</th><th>Code</th><th>Name</th><th>Category</th><th>Unit</th><th>UnitPrice</th><th>onshelf</th><th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="tblProducts"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card p-4">
+        <h2 class="font-bold text-lg mb-3">เพิ่ม/แก้ไขสินค้า (ตามรหัส)</h2>
+        <div class="grid md:grid-cols-6 gap-3 text-sm" id="form">
+          <input class="border rounded px-2 py-2 w-full" id="fCode" placeholder="ProductCode*">
+          <input class="border rounded px-2 py-2 w-full" id="fName" placeholder="Name*">
+          <input class="border rounded px-2 py-2 w-full" id="fCat" placeholder="Category">
+          <input class="border rounded px-2 py-2 w-full" id="fUnit" placeholder="Unit">
+          <input class="border rounded px-2 py-2 w-full" id="fPrice" type="number" step="0.01" placeholder="UnitPrice*">
+          <div class="md:col-span-2 space-y-1">
+            <input class="border rounded px-2 py-2 w-full" id="fImg" placeholder="ImageUrl (วางลิงก์หรือเลือกไฟล์)">
+            <div class="flex items-center gap-2 flex-wrap">
+              <input id="fImgFile" type="file" accept="image/*" class="text-sm w-full md:w-auto min-w-0">
+              <div id="fImgDrop" class="drop px-3 py-2 text-xs">ลากรูปมาวาง</div>
+              <img id="fImgPrev" class="h-12 w-12 rounded object-cover hidden"/>
+            </div>
+          </div>
+          <div class="md:col-span-6 flex gap-2">
+            <button id="btnUpsert" class="btn btn-green px-4 py-2">บันทึก/อัปเดต</button>
+            <button id="btnFormClear" class="btn btn-outline px-4 py-2">ล้างแบบฟอร์ม</button>
+            <span id="formStatus" class="text-sm text-slate-600"></span>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <h2 class="font-bold text-lg mb-2">นำเข้าสินค้า (CSV)</h2>
+        <details class="mb-3 text-sm text-slate-700">
+          <summary class="cursor-pointer">รูปแบบไฟล์ตัวอย่าง (คลิกเพื่อดู)</summary>
+          <pre class="bg-slate-50 p-3 rounded text-xs overflow-auto mono">product_code,name,category,unit,unit_price,image_url,onshelf
+CAK001,เค้กวนิลา 1 ปอนด์,พิเศษ,ก้อน,450,,true
+DRK001,น้ำส้มคั้น,น้ำผลไม้,แก้ว,45,,on</pre>
+        </details>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="mCsvFile" type="file" accept=".csv" class="rounded border px-3 py-2 w-full md:w-auto min-w-0 flex-1">
+          <button id="btnMCsvImport2" class="btn btn-outline px-3 py-2">นำเข้า</button>
+          <span id="mCsvStatus" class="text-sm text-slate-600 w-full md:w-auto truncate"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Help -->
+    <section id="tab-help" class="hidden">
+      <div class="card p-4 space-y-3 text-sm text-slate-700">
+        <h2 class="font-bold text-lg">วิธีใช้งาน (สรุปเร็ว)</h2>
+        <ol class="list-decimal pl-5 space-y-1">
+          <li>เตรียมไฟล์ <b>CSV</b> หรือ <b>JSON</b> ให้มีคอลัมน์: ProductCode, Name, Category, Unit, UnitPrice, ImageUrl, onshelf</li>
+          <li>ไปที่แท็บ <b>นำเข้า/ส่งออก</b> แล้วลากไฟล์มาวาง หรือกดเลือกไฟล์ / วางข้อมูล</li>
+          <li>จับคู่คอลัมน์ให้ครบ (อย่างน้อย ProductCode, Name, UnitPrice)</li>
+          <li>ตรวจสอบพรีวิว แล้วกด <b>รวมกับของเดิม</b> หรือ <b>แทนที่ทั้งหมด</b></li>
+          <li>เปิดหน้า POS (เช่น <i>POS_2c.html</i>) แล้วรีเฟรช หน้า POS จะอ่านข้อมูลจากคีย์ <code>posProducts</code></li>
+        </ol>
+        <div class="pt-2 border-t">
+          <h3 class="font-semibold">Debug / Self‑Test</h3>
+          <p>กดปุ่มเพื่อรันชุดทดสอบในคอนโซล หรือดูผลลัพธ์บนหน้าจอ</p>
+          <div class="flex gap-2 mt-2">
+            <button id="btnRunTests" class="btn btn-outline px-3 py-2">Run Self‑Test</button>
+            <span id="testResult" class="text-sm text-slate-600"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+function __setHeaderPad(){
+  var h=document.querySelector('header');
+  if(!h) return;
+  var last = 0;
+  var apply = function(){
+    var hh = h.offsetHeight || 0;
+    if(hh !== last){
+      last = hh;
+      document.documentElement.style.setProperty('--header-h', hh + 'px');
+    }
+  };
+  apply();
+  requestAnimationFrame(apply);
+  setTimeout(apply, 200);
+}
+window.addEventListener('DOMContentLoaded', __setHeaderPad);
+window.addEventListener('load', __setHeaderPad);
+window.addEventListener('pageshow', __setHeaderPad);
+window.addEventListener('resize', __setHeaderPad);
+window.addEventListener('orientationchange', __setHeaderPad);
+window.addEventListener('visibilitychange', function(){ if(!document.hidden) __setHeaderPad(); });
+</script>
+<script>
+function __setActiveNavAdmin(){
+  var nav=document.getElementById('topNav'); if(!nav) return;
+  nav.querySelectorAll('a').forEach(function(a){
+    a.classList.remove('font-extrabold','text-green-400');
+    a.classList.add('opacity-90');
+    if((a.getAttribute('href')||'')==='/admin'){
+      a.classList.add('font-extrabold','text-green-400');
+      a.classList.remove('opacity-90');
+    }
+  });
+}
+window.addEventListener('load', __setActiveNavAdmin);
+</script>
+<script>
+(function(){
+  try{
+    const p=location.pathname.replace(/\/+$/,'');
+    if(p!=='/admin'){ history.replaceState({},'', '/admin'); }
+  }catch(e){}
+  'use strict';
+  const LS_KEY='posProducts';
+  const TARGETS=[
+    {id:'ProductCode', label:'รหัสสินค้า*', required:true},
+    {id:'Name', label:'ชื่อสินค้า*', required:true},
+    {id:'Category', label:'หมวดหมู่'},
+    {id:'Unit', label:'หน่วย'},
+    {id:'UnitPrice', label:'ราคา*', required:true},
+    {id:'ImageUrl', label:'ภาพ (URL)'},
+    {id:'onshelf', label:'วางขาย (on/off)'}
+  ];
+
+  const $=sel=>document.querySelector(sel);
+  const $$=sel=>Array.from(document.querySelectorAll(sel));
+
+  // Tabs
+  const tabs=$('#tabs');
+  if(tabs){
+    tabs.addEventListener('click',e=>{
+      const b=e.target.closest('[data-tab]'); if(!b) return;
+      const t=b.dataset.tab;
+      $$('#tabs [data-tab]').forEach(x=>x.classList.remove('font-semibold'));
+      b.classList.add('font-semibold');
+      ['manage','help'].forEach(id=>$('#tab-'+id).classList.toggle('hidden', id!==t));
+      if(t==='manage') refreshTable();
+    });
+    // default tab = manage
+    const first=$$('#tabs [data-tab]')[0]; if(first) first.classList.add('font-semibold');
+    $('#tab-manage').classList.remove('hidden');
+    $('#tab-help').classList.add('hidden');
+  }
+
+  // --- CSV / JSON Parse Helpers ---
+  function detectDelimiter(text){
+    const s=text.slice(0,1000);
+    const counts={',':(s.match(/,/g)||[]).length,';':(s.match(/;/g)||[]).length,'\t':(s.match(/\t/g)||[]).length};
+    let max=','; if(counts[';']>counts[',']) max=';'; if(counts['\t']>counts[max]) max='\t';
+    return max==='\t'?'\t':max;
+  }
+  function parseCSV(text){
+    text=text.replace(/\uFEFF/g,'');
+    const delim=detectDelimiter(text);
+    const rows=[]; let row=[]; let field=''; let inQ=false; let i=0; const n=text.length;
+    while(i<n){
+      const c=text[i];
+      if(inQ){
+        if(c==='"'){
+          if(text[i+1]==='"'){ field+='"'; i++; }
+          else { inQ=false; }
+        } else { field+=c; }
+      } else {
+        if(c==='"') inQ=true;
+        else if(c===delim){ row.push(field); field=''; }
+        else if(c==='\n' || c==='\r'){
+          if(c==='\r' && text[i+1]==='\n') i++;
+          row.push(field); field=''; if(row.length>1 || row[0]!=='' ) rows.push(row); row=[];
+        } else { field+=c; }
+      }
+      i++;
+    }
+    if(field.length || row.length) { row.push(field); rows.push(row); }
+    if(!rows.length) return {headers:[], data:[]};
+    const headers=rows.shift().map(h=>String(h||'').trim());
+    return {headers, data:rows.filter(r=>r.some(x=>String(x).trim()!==''))};
+  }
+
+  function toCSV(arr){
+    const headers=['ProductCode','Name','Category','Unit','UnitPrice','ImageUrl','onshelf'];
+    const esc=v=>{
+      v=(v==null?'':String(v));
+      if(/[",\n\r;\t]/.test(v)) return '"'+v.replace(/"/g,'""')+'"';
+      return v;
+    };
+    const lines=[headers.join(',')];
+    for(const p of arr){ lines.push(headers.map(k=>esc(p[k])).join(',')); }
+    return lines.join('\n');
+  }
+
+  async function fileToDataUrl(file){
+    return await new Promise((resolve,reject)=>{
+      const url=URL.createObjectURL(file);
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const max=640; // max width/height px
+          const scale=Math.min(max/img.width, max/img.height, 1);
+          const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+          const canvas=document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          const ctx=canvas.getContext('2d');
+          ctx.drawImage(img,0,0,w,h);
+          const data=canvas.toDataURL('image/jpeg', 0.72); // compress
+          URL.revokeObjectURL(url);
+          resolve(String(data||''));
+        }catch(err){ URL.revokeObjectURL(url); reject(err); }
+      };
+      img.onerror=(e)=>{ URL.revokeObjectURL(url); reject(e); };
+      img.src=url;
+    });
+  }
+
+  function guess(header){
+    const h=header.toLowerCase();
+    if(/code|รหัส/.test(h)) return 'ProductCode';
+    if(/name|สินค้า|ชื่อ/.test(h)) return 'Name';
+    if(/categor|หมวด/.test(h)) return 'Category';
+    if(/unit|หน่วย/.test(h)) return 'Unit';
+    if(/price|ราคา/.test(h)) return 'UnitPrice';
+    if(/image|img|รูป|ภาพ|url/.test(h)) return 'ImageUrl';
+    if(/on|shelf|ขาย|แสดง|status/.test(h)) return 'onshelf';
+    return null;
+  }
+
+  function normalizeProduct(p){
+    const x={
+      ProductCode:String(p.ProductCode||'').trim(),
+      Name:String(p.Name||'').trim(),
+      Category:p.Category?String(p.Category):'',
+      Unit:p.Unit?String(p.Unit):'',
+      UnitPrice: isFinite(parseFloat(p.UnitPrice)) ? parseFloat(p.UnitPrice) : 0,
+      ImageUrl: p.ImageUrl?String(p.ImageUrl):'',
+      onshelf: (String(p.onshelf||'on').toLowerCase()==='off')?'off':'on'
+    };
+    return x;
+  }
+
+  function loadAll(){
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return []; }
+  }
+  function saveAll(list){
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify(list));
+      return true;
+    }catch(e){
+      console.warn('[Admin] localStorage full, stripping large images…', e);
+      try{
+        const slim=list.map(p=>{ const q={...p}; if(q.ImageUrl && q.ImageUrl.startsWith('data:') && q.ImageUrl.length>120000) q.ImageUrl=''; return q; });
+        localStorage.setItem(LS_KEY, JSON.stringify(slim));
+        return true;
+      }catch(e2){ console.error('[Admin] save failed after strip', e2); return false; }
+    }
+  }
+
+  // State for current parsed dataset
+  let parsed={headers:[], data:[]}; // from CSV
+  let mapping={}; // target -> header
+
+  // ===== API helpers (DB connectivity) =====
+  const API={
+    async list(){
+      try{
+        const r=await fetch('/api/products');
+        if(!r.ok) throw new Error('list not ok');
+        const rows=await r.json();
+        // normalize from API fields to UI fields
+        return rows.map(r=>({
+          ProductCode: r.product_code||r.ProductCode||r.code,
+          Name: r.name||r.Name,
+          Category: r.category||r.Category||'',
+          Unit: r.unit||r.Unit||'',
+          UnitPrice: Number(r.unit_price ?? r.UnitPrice ?? 0),
+          ImageUrl: r.image_url||r.ImageUrl||'',
+          onshelf: (r.onshelf===true||String(r.onshelf).toLowerCase()==='on')?'on':'off'
+        }));
+      }catch(e){ console.warn('[Admin] API.list fallback to local', e); return null; }
+    },
+    async upsert(p, imgFile){
+      try{
+        const fd=new FormData();
+        fd.append('product_code', p.ProductCode);
+        fd.append('name', p.Name);
+        fd.append('category', p.Category||'');
+        fd.append('unit', p.Unit||'');
+        fd.append('unit_price', String(p.UnitPrice||0));
+        fd.append('onshelf', String(p.onshelf==='on'));
+        if(imgFile){ fd.append('image', imgFile, imgFile.name||'image.jpg'); }
+        else if(p.ImageUrl){ fd.append('image_url', p.ImageUrl); }
+        const r=await fetch('/api/products', { method:'POST', body: fd });
+        return r.ok;
+      }catch(e){ console.warn('[Admin] API.upsert failed', e); return false; }
+    },
+    async del(code){ try{ const r=await fetch('/api/products/'+encodeURIComponent(code),{method:'DELETE'}); return r.ok; }catch(e){ console.warn('[Admin] API.del failed', e); return false; } },
+    async importCSV(file){
+      try{
+        const fd=new FormData(); fd.append('file', file);
+        const r=await fetch('/api/products/import-csv',{method:'POST', body:fd});
+        let data=null; try{ data=await r.clone().json(); }catch{}
+        return { ok:r.ok, data };
+      }catch(e){ console.warn('[Admin] API.importCSV failed', e); return { ok:false, data:null }; }
+    }
+  };
+
+  // UI bindings
+  const dropArea=$('#dropArea');
+  const fileInput=$('#fileInput');
+  const pasteBox=$('#pasteBox');
+  const btnParsePaste=$('#btnParsePaste');
+  const parseStatus=$('#parseStatus');
+  const mapBox=$('#mapBox');
+  const previewWrap=$('#previewWrap');
+  const prevHead=$('#prevHead');
+  const prevBody=$('#prevBody');
+  const rowCount=$('#rowCount');
+  const saveStatus=$('#saveStatus');
+
+  // Drag & drop
+  if(dropArea){
+    ['dragenter','dragover'].forEach(ev=>dropArea.addEventListener(ev,e=>{e.preventDefault(); e.stopPropagation(); dropArea.classList.add('drag');}));
+    ['dragleave','drop'].forEach(ev=>dropArea.addEventListener(ev,e=>{e.preventDefault(); e.stopPropagation(); dropArea.classList.remove('drag');}));
+    dropArea.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+  }
+  if(fileInput){ fileInput.addEventListener('change',e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=''; }); }
+
+  function handleFile(file){
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const text=String(reader.result||'');
+      if(/json/i.test(file.type) || file.name.toLowerCase().endsWith('.json')){
+        try{ const arr=JSON.parse(text); handleJSON(arr); } catch(err){ setParseStatus('ไฟล์ JSON ไม่ถูกต้อง'); }
+      } else { handleCSVText(text); }
+    };
+    reader.readAsText(file,'utf-8');
+  }
+
+  if(btnParsePaste){ btnParsePaste.addEventListener('click',()=>{
+    const t=pasteBox.value.trim(); if(!t){ setParseStatus('ยังไม่มีข้อมูล'); return; }
+    if(t.startsWith('[')){
+      try{ const arr=JSON.parse(t); handleJSON(arr); }
+      catch{ setParseStatus('รูปแบบ JSON ไม่ถูกต้อง'); }
+    } else { handleCSVText(t); }
+  }); }
+
+  function setParseStatus(msg){ parseStatus.textContent=msg||''; }
+
+  function handleCSVText(text){
+    parsed=parseCSV(text);
+    if(!parsed.headers.length){ setParseStatus('ไม่พบ header ใน CSV'); return; }
+    setParseStatus('อ่าน CSV แล้ว: '+parsed.data.length+' แถว');
+    buildMappingUI(parsed.headers);
+    buildPreview();
+  }
+
+  function handleJSON(arr){
+    if(!Array.isArray(arr)){ setParseStatus('JSON ต้องเป็น Array ของสินค้า'); return; }
+    if(!arr.length){ setParseStatus('JSON ว่าง'); return; }
+    // Build CSV-like objects
+    const headers=Array.from(new Set(arr.flatMap(o=>Object.keys(o))));
+    parsed={ headers, data: arr.map(o=> headers.map(h=> o[h] ?? '')) };
+    setParseStatus('อ่าน JSON แล้ว: '+arr.length+' แถว');
+    buildMappingUI(headers);
+    buildPreview();
+  }
+
+  function buildMappingUI(headers){
+    mapBox.innerHTML='';
+    mapping={};
+    // initial guess per header
+    const guessed={}; headers.forEach(h=>{ const g=guess(h)||''; if(g && !guessed[g]) guessed[g]=h; });
+    TARGETS.forEach(t=>{
+      const wrap=document.createElement('div');
+      wrap.innerHTML=`<label class="block text-sm">${t.label}</label>`+
+        `<select data-target="${t.id}" class="mt-1 w-full border rounded px-2 py-2">`+
+        `<option value="">— ไม่ระบุ —</option>`+
+        headers.map(h=>`<option ${guessed[t.id]===h?'selected':''}>${h}</option>`).join('')+
+        `</select>`;
+      mapBox.appendChild(wrap);
+    });
+    mapBox.onchange=(e)=>{ const sel=e.target.closest('select'); if(!sel) return; mapping[sel.dataset.target]=sel.value; buildPreview(); };
+    // set mapping by guessed
+    TARGETS.forEach(t=> mapping[t.id]=guessed[t.id]||'');
+  }
+
+  function buildPreview(){
+    // Required check
+    const requiredOk = TARGETS.filter(t=>t.required).every(t=> mapping[t.id] && parsed.headers.includes(mapping[t.id]));
+    if(!requiredOk){ previewWrap.classList.add('hidden'); return; }
+
+    // Build header
+    prevHead.innerHTML = TARGETS.map(t=>`<th>${t.id}</th>`).join('');
+
+    // Build rows
+    const idx = Object.fromEntries(parsed.headers.map((h,i)=>[h,i]));
+    const toProd = (row)=> normalizeProduct(Object.fromEntries(TARGETS.map(t=>[t.id, mapping[t.id]? row[idx[mapping[t.id]]] : ''])));
+    const preview = parsed.data.slice(0,20).map(toProd);
+    prevBody.innerHTML = preview.map(p=>`<tr>`+
+      `<td>${esc(p.ProductCode)}</td>`+
+      `<td class="whitespace-pre-wrap">${esc(p.Name)}</td>`+
+      `<td>${esc(p.Category)}</td>`+
+      `<td>${esc(p.Unit)}</td>`+
+      `<td class="text-right">${p.UnitPrice.toFixed(2)}</td>`+
+      `<td class="max-w-[18ch] truncate">${esc(p.ImageUrl)}</td>`+
+      `<td>${esc(p.onshelf)}</td>`+
+    `</tr>`).join('');
+
+    rowCount.textContent = (parsed.data.length||0)+ ' แถว';
+    previewWrap.classList.remove('hidden');
+  }
+
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // Save actions
+  if(document.getElementById('btnMerge')) document.getElementById('btnMerge').addEventListener('click',()=> saveImported('merge'));
+  if(document.getElementById('btnReplace')) document.getElementById('btnReplace').addEventListener('click',()=> saveImported('replace'));
+
+  function saveImported(mode){
+    const headers=parsed.headers; if(!headers.length){ saveStatus.textContent='ยังไม่มีข้อมูลเพื่อนำเข้า'; return; }
+    // Build all products from dataset
+    const idx = Object.fromEntries(headers.map((h,i)=>[h,i]));
+    const rows=parsed.data.map(r=> normalizeProduct(Object.fromEntries(TARGETS.map(t=>[t.id, mapping[t.id]? r[idx[mapping[t.id]]] : '']))));
+
+    let current = loadAll();
+    if(mode==='replace'){
+      current = rows;
+      saveAll(current);
+      saveStatus.textContent='แทนที่ทั้งหมดแล้ว: '+current.length+' รายการ';
+    } else {
+      // merge by ProductCode (update existing)
+      const map = new Map(current.map(p=>[p.ProductCode, p]));
+      for(const p of rows){ map.set(p.ProductCode, {...(map.get(p.ProductCode)||{}), ...p}); }
+      current = Array.from(map.values());
+      saveAll(current);
+      saveStatus.textContent='รวมข้อมูลแล้ว: รวมทั้งสิ้น '+current.length+' รายการ';
+    }
+    refreshTable();
+  }
+
+  // Export
+  if(document.getElementById('btnExportJSON')) document.getElementById('btnExportJSON').addEventListener('click',()=>{
+    const data=JSON.stringify(loadAll(),null,2);
+    download('products.json', new Blob([data],{type:'application/json'}));
+  });
+  if(document.getElementById('btnExportCSV')) document.getElementById('btnExportCSV').addEventListener('click',()=>{
+    const data=toCSV(loadAll());
+    download('products.csv', new Blob([data],{type:'text/csv'}));
+  });
+
+  function download(filename, blob){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+
+  // Sample CSV
+  if(document.getElementById('btnSample')) document.getElementById('btnSample').addEventListener('click',()=>{
+    const sample = toCSV([
+      {ProductCode:'CK01',Name:'Chocolate Fudge Cake',Category:'เค้ก',Unit:'ก้อน',UnitPrice:550,ImageUrl:'https://images.unsplash.com/photo-1601979031925-424e53b6caaa?q=80&w=1200&auto=format&fit=crop',onshelf:'on'},
+      {ProductCode:'CK02',Name:'Strawberry Shortcake',Category:'เค้ก',Unit:'ก้อน',UnitPrice:650,ImageUrl:'https://images.unsplash.com/photo-1606890737304-57a1ca8a5b62?q=80&w=1200&auto=format&fit=crop',onshelf:'on'},
+      {ProductCode:'DR01',Name:'Latte (Hot)',Category:'กาแฟ',Unit:'แก้ว',UnitPrice:65,ImageUrl:'',onshelf:'on'}
+    ]);
+    download('products_sample.csv', new Blob([sample],{type:'text/csv'}));
+  });
+
+  // Clear all
+  if(document.getElementById('btnClearAll')) document.getElementById('btnClearAll').addEventListener('click',()=>{
+    if(confirm('ยืนยันลบสินค้าทั้งหมดใน localStorage คีย์ '+LS_KEY+' ?')){
+      saveAll([]); refreshTable(); alert('ลบเรียบร้อย');
+    }
+  });
+
+  // Manage tab
+  const tblProducts=$('#tblProducts');
+  const prodCount=$('#prodCount');
+  const search=$('#search');
+  const btnRefresh=$('#btnRefresh');
+  btnRefresh.addEventListener('click',refreshTable);
+  search.addEventListener('input',refreshTable);
+
+  async function refreshTable(){
+    const term=(search.value||'').toLowerCase();
+    let list=await API.list();
+    const dbEl=document.getElementById('dbChip');
+    if(list){
+      if(dbEl){ dbEl.textContent='🟢 DB'; dbEl.className='dbchip fixed right-2 top-[calc(var(--header-h)+6px)] bg-green-50 text-green-700 border-green-300'; }
+      saveAll(list);
+    } else {
+      if(dbEl){ dbEl.textContent='🔴 DB'; dbEl.className='dbchip fixed right-2 top-[calc(var(--header-h)+6px)] bg-red-50 text-red-700 border-red-300'; }
+      list=loadAll();
+    }
+    list=list.filter(p=>!term || Object.values(p).join(' ').toLowerCase().includes(term));
+    prodCount.textContent=list.length;
+    tblProducts.innerHTML=list.slice(0,300).map(p=>`<tr>`+
+      `<td>${p.ImageUrl?`<img src="${esc(p.ImageUrl)}.html" alt="" class="h-10 w-10 object-cover rounded"/>`:''}</td>`+
+      `<td class="font-semibold">${esc(p.ProductCode)}</td>`+
+      `<td class="whitespace-pre-wrap">${esc(p.Name)}</td>`+
+      `<td>${esc(p.Category||'')}</td>`+
+      `<td>${esc(p.Unit||'')}</td>`+
+      `<td class="text-right">${Number(p.UnitPrice||0).toFixed(2)}</td>`+
+      `<td>${esc(p.onshelf||'on')}</td>`+
+      `<td><button class="text-blue-700 underline" data-edit="${esc(p.ProductCode)}">แก้ไข</button> · <button class="text-red-600 underline" data-del="${esc(p.ProductCode)}">ลบ</button></td>`+
+    `</tr>`).join('');
+    tblProducts.onclick=(e)=>{
+      const btn=e.target.closest('button'); if(!btn) return;
+      const code=btn.getAttribute('data-edit')||btn.getAttribute('data-del');
+      if(btn.hasAttribute('data-edit')) fillForm(code);
+      if(btn.hasAttribute('data-del')) delItem(code);
+    };
+  }
+
+  function fillForm(code){
+    const p=loadAll().find(x=>x.ProductCode===code); if(!p) return;
+    $('#fCode').value=p.ProductCode; $('#fName').value=p.Name; $('#fCat').value=p.Category||''; $('#fUnit').value=p.Unit||''; $('#fPrice').value=p.UnitPrice; $('#fImg').value=p.ImageUrl||'';
+    const pv=document.getElementById('fImgPrev'); if(pv){ pv.classList.toggle('hidden', !p.ImageUrl); if(p.ImageUrl) pv.src=p.ImageUrl; }
+    document.getElementById('tab-manage').scrollIntoView({behavior:'smooth'});
+  }
+  async function delItem(code){
+    if(!confirm('ลบสินค้า '+code+' ?')) return;
+    let list=loadAll(); list=list.filter(x=>x.ProductCode!==code); saveAll(list);
+    await API.del(code); // ignore failure silently; local list already updated
+    refreshTable();
+  }
+
+  document.getElementById('btnUpsert').addEventListener('click', async ()=>{
+    let imgUrl = ($('#fImg')? $('#fImg').value.trim() : '');
+    const imgFile = (document.getElementById('fImgFile') && document.getElementById('fImgFile').files && document.getElementById('fImgFile').files[0]) ? document.getElementById('fImgFile').files[0] : null;
+    if(imgFile && !imgUrl){ try{ imgUrl = await fileToDataUrl(imgFile); }catch(e){} }
+    const p=normalizeProduct({
+      ProductCode:$('#fCode').value,
+      Name:$('#fName').value,
+      Category:$('#fCat').value,
+      Unit:$('#fUnit').value,
+      UnitPrice:$('#fPrice').value,
+      ImageUrl:imgUrl,
+      onshelf:'on'
+    });
+    if(!p.ProductCode || !p.Name || !(p.UnitPrice>0)) { $('#formStatus').textContent='กรอก รหัส/ชื่อ/ราคา ให้ครบ'; return; }
+
+    // 1) Save to DB
+    const okApi = await API.upsert(p, imgFile);
+    if(!okApi){ console.warn('Upsert API failed, fallback local only'); }
+
+    // 2) Update local cache
+    const list=loadAll();
+    const i=list.findIndex(x=>x.ProductCode===p.ProductCode);
+    if(i>-1) list[i]=p; else list.push(p);
+    const okLocal=saveAll(list);
+
+    if(!okApi && !okLocal){ $('#formStatus').textContent='บันทึกไม่สำเร็จ (พื้นที่เต็ม/เครือข่ายล้มเหลว)'; alert('บันทึกไม่สำเร็จ'); return; }
+
+    $('#formStatus').textContent='บันทึกแล้ว ('+(i>-1?'อัปเดต':'เพิ่มใหม่')+')';
+    const pv=document.getElementById('fImgPrev'); if(pv){ pv.classList.toggle('hidden', !p.ImageUrl); if(p.ImageUrl) pv.src=p.ImageUrl; }
+    refreshTable();
+  });
+  document.getElementById('btnFormClear').addEventListener('click',()=>{
+    ['#fCode','#fName','#fCat','#fUnit','#fPrice','#fImg'].forEach(s=>{ const el=$(s); if(el) el.value=''; });
+    const inp=document.getElementById('fImgFile'); if(inp) inp.value='';
+    const pv=document.getElementById('fImgPrev'); if(pv){ pv.src=''; pv.classList.add('hidden'); }
+    $('#formStatus').textContent='';
+  });
+
+  // Image helpers for Manage form
+  (function(){
+    const inp=document.getElementById('fImgFile'); const drop=document.getElementById('fImgDrop'); const urlInp=document.getElementById('fImg'); const prev=document.getElementById('fImgPrev');
+    if(inp){ inp.addEventListener('change', async (e)=>{ const f=e.target.files[0]; if(!f) return; const url=await fileToDataUrl(f); if(urlInp) urlInp.value=url; if(prev){ prev.src=url; prev.classList.remove('hidden'); } }); }
+    if(drop){
+      ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,(e)=>{e.preventDefault(); e.stopPropagation(); drop.classList.add('drag');}));
+      ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,(e)=>{e.preventDefault(); e.stopPropagation(); drop.classList.remove('drag');}));
+      drop.addEventListener('drop', async (e)=>{ const f=Array.from(e.dataTransfer.files||[]).find(x=>x.type.startsWith('image/')); if(!f) return; const url=await fileToDataUrl(f); if(urlInp) urlInp.value=url; if(prev){ prev.src=url; prev.classList.remove('hidden'); } });
+    }
+  })();
+
+  // --- Manual Import (single entry + image) ---
+  const mfCode=$('#mfCode'); const mfName=$('#mfName'); const mfCat=$('#mfCat'); const mfUnit=$('#mfUnit'); const mfPrice=$('#mfPrice'); const mfImg=$('#mfImg');
+  const mfImgFile=document.getElementById('mfImgFile'); const mfDrop=document.getElementById('mfDrop'); const mfPrev=document.getElementById('mfPrev');
+  const btnMAdd=document.getElementById('btnMAdd'); const btnMSave=document.getElementById('btnMSave'); const btnMClear=document.getElementById('btnMClear');
+  const mStageBody=document.getElementById('mStageBody'); const mStageCount=document.getElementById('mStageCount');
+  let mStage=[];
+
+  function mResetForm(){ [mfCode,mfName,mfCat,mfUnit,mfPrice,mfImg].forEach(x=>{ if(x) x.value=''; }); if(mfImgFile) mfImgFile.value=''; if(mfPrev){ mfPrev.src=''; mfPrev.classList.add('hidden'); } }
+  async function mResolveImage(){ let url=(mfImg && mfImg.value.trim())||''; const f=(mfImgFile && mfImgFile.files && mfImgFile.files[0])? mfImgFile.files[0]: null; if(f){ try{ url=await fileToDataUrl(f);}catch(e){} } return url; }
+  function mRefreshStage(){ if(!mStageBody) return; mStageCount.textContent=mStage.length; mStageBody.innerHTML=mStage.map((p,i)=>`<tr>
+      <td class="font-semibold">${esc(p.ProductCode)}</td>
+      <td>${esc(p.Name)}</td>
+      <td>${esc(p.Category||'')}</td>
+      <td>${esc(p.Unit||'')}</td>
+      <td class="text-right">${Number(p.UnitPrice||0).toFixed(2)}</td>
+      <td>${p.ImageUrl?('<img src="'+esc(p.ImageUrl)+'.html" class="h-10 w-10 object-cover rounded" />'):''}</td>
+      <td><button class="text-red-600 underline" data-mdel="${i}">ลบ</button></td>
+    </tr>`).join(''); }
+  if(mStageBody){ mStageBody.onclick=(e)=>{ const b=e.target.closest('button[data-mdel]'); if(!b) return; const i=+b.dataset.mdel; mStage.splice(i,1); mRefreshStage(); }; }
+  if(btnMAdd){ btnMAdd.addEventListener('click', async ()=>{ const imgUrl=await mResolveImage(); const p=normalizeProduct({ ProductCode: mfCode.value, Name: mfName.value, Category: mfCat.value, Unit: mfUnit.value, UnitPrice: mfPrice.value, ImageUrl: imgUrl, onshelf: 'on' }); if(!p.ProductCode || !p.Name || !(p.UnitPrice>0)){ alert('กรอก รหัส/ชื่อ/ราคา ให้ครบ'); return; } mStage.push(p); mRefreshStage(); mResetForm(); }); }
+  if(btnMSave){ btnMSave.addEventListener('click', ()=>{ const cur=loadAll(); const map=new Map(cur.map(p=>[p.ProductCode,p])); for(const p of mStage){ map.set(p.ProductCode, {...(map.get(p.ProductCode)||{}), ...p}); } const next=Array.from(map.values()); saveAll(next); mStage=[]; mRefreshStage(); alert('บันทึกแล้ว: '+next.length+' รายการ (รวม)'); refreshTable(); }); }
+  if(btnMClear){ btnMClear.addEventListener('click', ()=>{ mStage=[]; mRefreshStage(); }); }
+  if(mfImgFile){ mfImgFile.addEventListener('change', async (e)=>{ const f=e.target.files[0]; if(!f) return; const url=await fileToDataUrl(f); if(mfImg) mfImg.value=url; if(mfPrev){ mfPrev.src=url; mfPrev.classList.remove('hidden'); } }); }
+  if(mfDrop){ ['dragenter','dragover'].forEach(ev=>mfDrop.addEventListener(ev,(e)=>{e.preventDefault(); e.stopPropagation(); mfDrop.classList.add('drag');})); ['dragleave','drop'].forEach(ev=>mfDrop.addEventListener(ev,(e)=>{e.preventDefault(); e.stopPropagation(); mfDrop.classList.remove('drag');})); mfDrop.addEventListener('drop', async (e)=>{ const f=Array.from(e.dataTransfer.files||[]).find(x=>x.type.startsWith('image/')); if(!f) return; const url=await fileToDataUrl(f); if(mfImg) mfImg.value=url; if(mfPrev){ mfPrev.src=url; mfPrev.classList.remove('hidden'); } }); }
+
+  // ---------- Self Tests (console + on-screen) ----------
+  function runSelfTests(){
+    const results=[]; const ok=(name,cond)=>results.push([name,!!cond]);
+    // Test 1: CSV parser (comma)
+    const csv1 = 'ProductCode,Name,UnitPrice\nA,Apple,10\nB,Banana,20';
+    const p1=parseCSV(csv1); ok('CSV comma header', JSON.stringify(p1.headers)==='["ProductCode","Name","UnitPrice"]'); ok('CSV comma rows', p1.data.length===2);
+    // Test 2: CSV parser (semicolon)
+    const csv2 = 'ProductCode;Name;UnitPrice\nA;กาแฟ;30';
+    const p2=parseCSV(csv2); ok('CSV semicolon header', p2.headers[1]==='Name'); ok('CSV semicolon rows', p2.data[0][2]==='30');
+    // Test 3: CSV parser (tab)
+    const csv3 = 'ProductCode\tName\tUnitPrice\nA\tชา\t40';
+    const p3=parseCSV(csv3); ok('CSV tab header', p3.headers[0]==='ProductCode'); ok('CSV tab value', p3.data[0][2]==='40');
+    // Test 4: toCSV roundtrip
+    const arr=[{ProductCode:'X',Name:'Test',Category:'C',Unit:'u',UnitPrice:5,ImageUrl:'',onshelf:'on'}];
+    const csvR=toCSV(arr); ok('toCSV contains header', csvR.startsWith('ProductCode,Name'));
+    // Test 5: normalizeProduct
+    const np=normalizeProduct({ProductCode:'  id ',Name:' ชื่อ ',UnitPrice:'9.5',onshelf:'OFF'}); ok('normalize trims + price', np.ProductCode==='id' && np.UnitPrice===9.5 && np.onshelf==='off');
+    // Display
+    let pass=results.filter(r=>r[1]).length; let fail=results.length-pass;
+    console.table(results.map(([n,c])=>({test:n,result:c?'PASS':'FAIL'})));
+    return {pass,fail,total:results.length};
+  }
+  const btnRunTests=$('#btnRunTests'); const testResult=$('#testResult');
+  if(btnRunTests){ btnRunTests.addEventListener('click', ()=>{ const r=runSelfTests(); testResult.textContent=`PASS ${r.pass}/${r.total} • FAIL ${r.fail}`; alert(`Self‑Test: PASS ${r.pass}/${r.total} • FAIL ${r.fail}`); }); }
+  // run once on load (console only)
+  try{ const r=runSelfTests(); if(testResult) testResult.textContent=`PASS ${r.pass}/${r.total} • FAIL ${r.fail}`; }catch{}
+
+  // Manage: CSV import (simple headers)
+  const mCsvFile=document.getElementById('mCsvFile');
+  const btnMCsvImport2=document.getElementById('btnMCsvImport2');
+  const mCsvStatus=document.getElementById('mCsvStatus');
+  if(btnMCsvImport2){ btnMCsvImport2.addEventListener('click', async ()=>{
+    const f=mCsvFile?.files?.[0]; if(!f){ mCsvStatus.textContent='ยังไม่ได้เลือกไฟล์'; return; }
+    // Try API upload first
+    let apiRes=null; try{ apiRes = await API.importCSV(f); }catch{}
+    if(apiRes && apiRes.ok){
+      const d = apiRes.data || {};
+      const added   = Number(d.added ?? d.imported ?? 0);
+      const updated = Number(d.updated ?? 0);
+      const total   = Number((d.total ?? d.count ?? (added+updated)) || 0);
+      mCsvStatus.textContent = `นำเข้าสำเร็จ (DB) • เพิ่ม ${added} อัปเดต ${updated} รวม ${total}`;
+      await refreshTable();
+      alert(`นำเข้าแล้ว (ฐานข้อมูล)\nเพิ่ม ${added} • อัปเดต ${updated} • รวม ${total}`);
+      return;
+    }
+
+    // Fallback: parse locally then save to localStorage
+    const text=await f.text();
+    const parsed=parseCSV(text);
+    if(!parsed.headers.length){ mCsvStatus.textContent='ไฟล์ CSV ไม่ถูกต้อง'; return; }
+    const headersLower=parsed.headers.map(h=>String(h).toLowerCase());
+    const find=(...names)=>{ const arr=names.map(n=>n.toLowerCase()); return headersLower.findIndex(h=> arr.includes(h)); };
+    const idx={
+      code: find('product_code','productcode','code','รหัสสินค้า'),
+      name: find('name','ชื่อสินค้า','สินค้า'),
+      cat:  find('category','หมวดหมู่','หมวด'),
+      unit: find('unit','หน่วย'),
+      price:find('unit_price','price','ราคาต่อหน่วย','ราคา'),
+      img:  find('image_url','image','img','รูป','ภาพ','url'),
+      shelf:find('onshelf','on_shelf','ขาย','status')
+    };
+    let list=loadAll();
+    let added=0, updated=0;
+    for(const row of parsed.data){
+      const get=i=> (i>=0 && i<row.length)? String(row[i]).trim():'';
+      const p=normalizeProduct({
+        ProductCode:get(idx.code),
+        Name:get(idx.name),
+        Category:get(idx.cat),
+        Unit:get(idx.unit),
+        UnitPrice:get(idx.price),
+        ImageUrl:get(idx.img),
+        onshelf:(get(idx.shelf)||'on')
+      });
+      if(!p.ProductCode || !p.Name || !(p.UnitPrice>0)) continue;
+      const i=list.findIndex(x=>x.ProductCode===p.ProductCode);
+      if(i>=0){ list[i]=p; updated++; } else { list.push(p); added++; }
+    }
+    const ok=saveAll(list);
+    if(!ok){ mCsvStatus.textContent='บันทึกไม่สำเร็จ (localStorage เต็ม)'; alert('บันทึกไม่สำเร็จ: localStorage เต็ม — ลดขนาดรูป/ใช้ URL รูปแทน'); return; }
+    mCsvStatus.textContent = `นำเข้าในเครื่อง • เพิ่ม ${added} อัปเดต ${updated} รวม ${list.length}`;
+    refreshTable();
+    alert(`นำเข้าภายในเครื่อง\nเพิ่ม ${added} • อัปเดต ${updated} • รวม ${list.length}`);
+  }); }
+
+  // Init table
+  refreshTable();
+})();
+</script>
+</body>
+</html>
