@@ -1,0 +1,65 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pangpaan_db
+    environment:
+      POSTGRES_USER: pang
+      POSTGRES_PASSWORD: pangpass
+      POSTGRES_DB: pangpaan_pos
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5438:5432"
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'pang']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: pangpaan_api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://pang:pangpass@db:5432/pangpaan_pos
+      PORT: 8000
+    ports:
+      - "8088:8000"
+    volumes:
+      - ./api:/app/api:rw
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_BASE: http://api:8000
+    container_name: pangpaan_web
+    depends_on:
+      - api
+    ports:
+      - "8090:3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pangpaan_tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: pangpaan_watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300
+
+volumes:
+  db_data:

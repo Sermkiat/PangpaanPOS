@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pangpaan POS System
 
-## Getting Started
+Full-stack POS built for Raspberry Pi 5. Stack: Next.js 14 (App Router, TS, Tailwind, shadcn), Zustand for client state, Express + Drizzle + Postgres, Docker compose + Cloudflared tunnel + Watchtower.
 
-First, run the development server:
+## Structure
+- `src/` Next.js app (App Router) with features: POS, Orders, Inventory, Recipes, Costing, Expenses, Waste, Allocation, Dashboard, Settings
+- `api/` Express TypeScript API with Drizzle schema/migrations
+- `public/` PWA assets (manifest, service worker, icons)
+- `docker-compose.yml` orchestrates db/api/web/cloudflared/watchtower
 
+## Quick start (dev on Pi5)
 ```bash
+cd /mnt/webapp/pangpaan-pos
+npm install
+cd api && npm install && cd ..
+# run web dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# run API dev
+cd api && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Docker (recommended)
+```bash
+# build + start
+TUNNEL_TOKEN=<cloudflare_token> docker compose up -d --build
+# health
+curl http://localhost:8088/health
+# web
+open http://localhost:8090
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
+- `DATABASE_URL=postgresql://pang:pangpass@db:5432/pangpaan_pos`
+- `PORT=8000` (API)
+- `NEXT_PUBLIC_API_BASE=http://api:8000`
+- `TUNNEL_TOKEN=<cloudflare tunnel token>`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Migrations (Drizzle)
+```bash
+cd api
+npx drizzle-kit generate:pg
+npx drizzle-kit migrate
+```
 
-## Learn More
+## PWA
+- `public/manifest.webmanifest`
+- `public/sw.js` (cache-first shell)
+- iPad-friendly layout, big buttons, warm pastel theme
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
+- Raspberry Pi 5 with Docker + Portainer
+- Cloudflare Tunnel exposes `pangpaan.com` to services
+- Watchtower auto-updates images from Docker Hub (hook via GitHub Actions to build/push)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
