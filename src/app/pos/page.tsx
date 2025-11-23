@@ -14,7 +14,7 @@ interface CartLine {
 }
 
 export default function PosPage() {
-  const { products } = usePosStore();
+  const { products, addOrder } = usePosStore();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState<number>(0);
@@ -74,6 +74,18 @@ export default function PosPage() {
 
   const setCashExact = (amount: number) => {
     setCashValue(amount.toFixed(2));
+  };
+
+  const handlePay = () => {
+    if (totals.enriched.length === 0) return;
+    const lines = totals.enriched.map((line) => ({
+      productId: line.productId,
+      name: line.name,
+      qty: line.qty,
+      unitPrice: line.unitPrice,
+    }));
+    addOrder(lines, payment);
+    clearCart();
   };
 
   return (
@@ -296,6 +308,7 @@ export default function PosPage() {
               <button
                 type="button"
                 disabled={totals.total === 0}
+                onClick={handlePay}
                 className="flex-1 rounded-xl bg-emerald-500 py-3 text-base font-bold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Pay ฿ {totals.total.toFixed(2)}

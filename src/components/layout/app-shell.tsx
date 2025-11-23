@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { BarChart3, CookingPot, Home, Layers, Receipt, Settings, ShoppingBag, ShoppingCart, Wallet, Wheat } from "lucide-react";
+import pkg from "../../../package.json";
 import React from "react";
 
 const navItems = [
@@ -21,6 +22,11 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const buildId =
+    process.env.NEXT_PUBLIC_BUILD_ID ||
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
+    new Date().toISOString().slice(0, 10);
+  const buildVersion = `build ${pkg.version} • ${buildId}`;
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -32,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <div className="text-lg font-bold">Pangpaan POS</div>
-              <div className="text-xs text-white/80">Minimal, fast, iPad-friendly</div>
+              <div className="text-xs text-white/80">{buildVersion}</div>
             </div>
           </div>
           <nav className="ml-auto hidden items-center gap-2 rounded-full bg-slate-800/80 px-2 py-1 text-sm shadow-inner shadow-black/10 md:flex">

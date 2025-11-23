@@ -62,6 +62,10 @@ type StoreState = {
   expenses: Expense[];
   waste: Waste[];
   allocationRules: AllocationRule[];
+  addProduct: (p: Omit<Product, "id">) => Product;
+  updateProduct: (id: number, p: Partial<Omit<Product, "id">>) => void;
+  removeProduct: (id: number) => void;
+  toggleProductActive: (id: number, active: boolean) => void;
   addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"]) => Order;
   updateOrderStatus: (id: string, status: Order["status"]) => void;
   adjustItemStock: (itemId: number, delta: number) => void;
@@ -170,6 +174,24 @@ export const usePosStore = create<StoreState>((set, get) => ({
   expenses: seedExpenses,
   waste: seedWaste,
   allocationRules: seedAllocations,
+  addProduct: (p) => {
+    const next: Product = { ...p, id: Date.now() };
+    set((state) => ({ products: [...state.products, next] }));
+    return next;
+  },
+  updateProduct: (id, p) =>
+    set((state) => ({
+      products: state.products.map((prod) => (prod.id === id ? { ...prod, ...p } : prod)),
+    })),
+  removeProduct: (id) =>
+    set((state) => ({
+      products: state.products.filter((prod) => prod.id !== id),
+      recipes: state.recipes.filter((r) => r.productId !== id),
+    })),
+  toggleProductActive: (id, active) =>
+    set((state) => ({
+      products: state.products.map((prod) => (prod.id === id ? { ...prod, active } : prod)),
+    })),
   addOrder: (lines, paymentMethod) => {
     const total = lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0);
     const order: Order = {
