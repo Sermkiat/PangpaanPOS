@@ -1,4 +1,4 @@
-# Pangpaan POS System
+# PangpaanPOS
 
 Full-stack POS built for Raspberry Pi 5. Stack: Next.js 14 (App Router, TS, Tailwind, shadcn), Zustand for client state, Express + Drizzle + Postgres, Docker compose + Cloudflared tunnel + Watchtower.
 
@@ -51,4 +51,3 @@ npx drizzle-kit migrate
 - Raspberry Pi 5 with Docker + Portainer
 - Cloudflare Tunnel exposes `pangpaan.com` to services
 - Watchtower auto-updates images from Docker Hub (hook via GitHub Actions to build/push)
-
