@@ -100,16 +100,16 @@ export default function PosPage() {
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>POS Screen</CardTitle>
-            <Badge tone="orange">iPad friendly</Badge>
+            <Badge tone="gray">iPad friendly</Badge>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((p) => (
               <button
                 key={p.id}
                 onClick={() => addToCart(p.id)}
-                className="group flex flex-col overflow-hidden rounded-xl border border-orange-100 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
-                <div className="relative h-36 w-full overflow-hidden bg-orange-50">
+                <div className="relative h-36 w-full overflow-hidden bg-slate-50">
                   <Image
                     src={p.imageUrl || 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&w=800&q=60'}
                     alt={p.name}
@@ -118,12 +118,12 @@ export default function PosPage() {
                   />
                 </div>
                 <div className="space-y-1 p-3">
-                  <div className="flex items-center justify-between text-xs text-orange-700">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
                     <span>{p.category}</span>
                     {p.active ? <Badge tone="green">On shelf</Badge> : <Badge tone="gray">Hidden</Badge>}
                   </div>
-                  <div className="font-semibold text-orange-950 leading-tight">{p.name}</div>
-                  <div className="text-lg font-extrabold text-orange-900">฿ {p.price.toFixed(0)}</div>
+                  <div className="font-semibold text-slate-900 leading-tight">{p.name}</div>
+                  <div className="text-lg font-extrabold text-slate-900">฿ {p.price.toFixed(0)}</div>
                 </div>
               </button>
             ))}
@@ -135,7 +135,7 @@ export default function PosPage() {
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>Order Details</CardTitle>
-            <Button variant="ghost" size="sm" onClick={clearCart}>
+            <Button variant="outline" size="sm" onClick={clearCart}>
               Clear
             </Button>
           </CardHeader>
