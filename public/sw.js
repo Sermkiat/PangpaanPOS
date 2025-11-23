@@ -1,4 +1,6 @@
-const CACHE_NAME = "pangpaan-pos-cache-v1";
+// Simple cache-first service worker for Pangpaan POS
+// Bump CACHE_NAME when deploying UI changes to flush old assets
+const CACHE_NAME = "pangpaan-pos-cache-v2";
 const OFFLINE_URLS = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
