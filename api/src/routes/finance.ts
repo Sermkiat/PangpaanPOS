@@ -2,9 +2,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/client.js";
-import { allocationRules, expenseLog, wasteRecords } from "../db/schema.js";
+import { allocationRules, expenseLog, wasteRecords, items, inventoryMovements } from "../db/schema.js";
 import { asyncHandler, ok } from "../utils/http.js";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -112,9 +112,19 @@ const wasteInput = z.object({
 router.get(
   "/waste",
   asyncHandler(async (_req, res) => {
-    const rows = await db.query.wasteRecords.findMany({
-      orderBy: (tbl, { desc }) => desc(tbl.recordedOn),
-    });
+    const rows = await db
+      .select({
+        id: wasteRecords.id,
+        itemId: wasteRecords.itemId,
+        qty: wasteRecords.qty,
+        reason: wasteRecords.reason,
+        recordedOn: wasteRecords.recordedOn,
+        name: items.name,
+        unit: items.unit,
+      })
+      .from(wasteRecords)
+      .leftJoin(items, eq(items.id, wasteRecords.itemId))
+      .orderBy(desc(wasteRecords.recordedOn));
     return ok(res, rows);
   }),
 );
@@ -127,7 +137,22 @@ router.post(
       .insert(wasteRecords)
       .values({ ...payload, recordedOn: payload.recordedOn ?? new Date() })
       .returning();
-    return ok(res, created, 201);
+
+    // Deduct stock
+    const [updatedItem] = await db
+      .update(items)
+      .set({ stockQty: sql`${items.stockQty} - ${payload.qty}`, updatedAt: new Date() })
+      .where(eq(items.id, payload.itemId))
+      .returning();
+
+    // Log movement
+    await db.insert(inventoryMovements).values({
+      productId: payload.itemId,
+      change: -payload.qty,
+      reason: `waste: ${payload.reason}`,
+    });
+
+    return ok(res, { ...created, updatedItem }, 201);
   }),
 );
 

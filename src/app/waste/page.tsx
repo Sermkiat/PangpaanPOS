@@ -1,23 +1,33 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { usePosStore } from '@/lib/store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Table, THead, TBody, TH, TD } from '@/components/ui/table';
+import { useEffect, useState } from "react";
+import { usePosStore } from "@/lib/store";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, THead, TBody, TH, TD } from "@/components/ui/table";
+
+const reasons = ["expired", "spoil", "broken", "other"];
 
 export default function WastePage() {
-  const { waste, addWaste, items } = usePosStore();
-  const [form, setForm] = useState({ itemId: items[0]?.id ?? 0, qty: 0, reason: '' });
+  const { waste, addWaste, items, adjustItemStock } = usePosStore();
+  const [form, setForm] = useState({ itemId: 0, qty: 0, reason: "expired" });
 
-  const submit = () => {
+  useEffect(() => {
+    if (items.length && form.itemId === 0) {
+      setForm((f) => ({ ...f, itemId: items[0].id }));
+    }
+  }, [items, form.itemId]);
+
+  const submit = async () => {
     if (!form.itemId || !form.qty || !form.reason) return;
-    addWaste(form);
-    setForm((f) => ({ ...f, qty: 0, reason: '' }));
+    await addWaste(form);
+    // stock already deducted in API; ensure UI state updates as well
+    await adjustItemStock(form.itemId, 0, "");
+    setForm((f) => ({ ...f, qty: 0, reason: "expired" }));
   };
 
-  const findName = (id: number) => items.find((i) => i.id === id)?.name ?? 'Unknown';
+  const findName = (id: number) => items.find((i) => i.id === id)?.name ?? "Unknown";
 
   return (
     <div className="space-y-4">
@@ -27,32 +37,38 @@ export default function WastePage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Record waste</CardTitle>
+          <CardTitle>Record waste (ตัดสต็อกอัตโนมัติ)</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <Input
-            list="waste-items"
-            placeholder="Item ID"
-            value={form.itemId || ''}
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <select
+            className="rounded-md border px-3 py-2 text-sm"
+            value={form.itemId}
             onChange={(e) => setForm((f) => ({ ...f, itemId: Number(e.target.value) }))}
-          />
-          <datalist id="waste-items">
+          >
             {items.map((it) => (
-              <option key={it.id} value={it.id}>{it.name}</option>
+              <option key={it.id} value={it.id}>
+                {it.name}
+              </option>
             ))}
-          </datalist>
+          </select>
           <Input
             type="number"
             placeholder="Qty"
-            value={form.qty || ''}
+            value={form.qty || ""}
             onChange={(e) => setForm((f) => ({ ...f, qty: Number(e.target.value) }))}
           />
-          <Input
-            placeholder="Reason"
+          <select
+            className="rounded-md border px-3 py-2 text-sm"
             value={form.reason}
             onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-          />
-          <div className="md:col-span-3 flex justify-end">
+          >
+            {reasons.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center justify-end">
             <Button onClick={submit}>Save waste</Button>
           </div>
         </CardContent>
@@ -77,8 +93,8 @@ export default function WastePage() {
                 <tr key={w.id}>
                   <TD>{new Date(w.date).toLocaleString()}</TD>
                   <TD>{findName(w.itemId)}</TD>
-                  <TD>{w.qty}</TD>
-                  <TD>{w.reason}</TD>
+                  <TD className="text-rose-700 font-semibold">-{w.qty}</TD>
+                  <TD className="capitalize">{w.reason}</TD>
                 </tr>
               ))}
             </TBody>
