@@ -157,7 +157,7 @@ export default function PosPage() {
         </Card>
       </div>
 
-      <div className="lg:col-span-2 space-y-4">
+      <div className="lg:col-span-2 space-y-4 lg:max-h-[calc(100vh-180px)] lg:overflow-auto pb-4">
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>Order Details</CardTitle>
