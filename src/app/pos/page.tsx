@@ -25,6 +25,7 @@ export default function PosPage() {
   const [cashValue, setCashValue] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
   const [cartToast, setCartToast] = useState<number>(0);
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -128,16 +129,22 @@ export default function PosPage() {
     setShowConfirm(true);
   };
 
-  const confirmPay = () => {
-    const lines = totals.enriched.map((line) => ({
-      productId: line.productId,
-      name: line.name,
-      qty: line.qty,
-      unitPrice: line.unitPrice,
-    }));
-    addOrder(lines, payment);
-    setShowConfirm(false);
-    clearCart();
+  const confirmPay = async () => {
+    if (isPaying) return;
+    setIsPaying(true);
+    try {
+      const lines = totals.enriched.map((line) => ({
+        productId: line.productId,
+        name: line.name,
+        qty: line.qty,
+        unitPrice: line.unitPrice,
+      }));
+      await addOrder(lines, payment);
+      setShowConfirm(false);
+      clearCart();
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   useEffect(() => {
@@ -399,11 +406,11 @@ export default function PosPage() {
               </button>
               <button
                 type="button"
-                disabled={totals.total === 0}
+                disabled={totals.total === 0 || isPaying}
                 onClick={handlePay}
                 className="flex-1 rounded-xl bg-emerald-500 py-3 text-base font-bold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Pay ฿ {totals.total.toFixed(2)}
+                {isPaying ? 'Processing…' : `Pay ฿ ${totals.total.toFixed(2)}`}
               </button>
             </div>
 
@@ -438,7 +445,7 @@ export default function PosPage() {
             </div>
             <div className="mt-4 flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>ยกเลิก</Button>
-              <Button className="flex-1" onClick={confirmPay}>ยืนยันชำระ</Button>
+              <Button className="flex-1" disabled={isPaying} onClick={confirmPay}>{isPaying ? 'Processing…' : 'ยืนยันชำระ'}</Button>
             </div>
           </div>
         </div>
