@@ -3,7 +3,7 @@
 Full-stack POS built for Raspberry Pi 5. Stack: Next.js 14 (App Router, TS, Tailwind, shadcn), Zustand for client state, Express + Drizzle + Postgres, Docker compose + Cloudflared tunnel + Watchtower.
 
 ## Structure
-- `src/` Next.js app (App Router) with features: POS, Orders, Inventory, Recipes, Costing, Expenses, Waste, Allocation, Dashboard, Settings
+- `src/` Next.js app (App Router) with features: POS, Orders, Inventory, Recipes, Costing, Expenses, Waste, Allocation, Dashboard, Settings, Debt Manager (ใหม่)
 - `api/` Express TypeScript API with Drizzle schema/migrations
 - `public/` PWA assets (manifest, service worker, icons)
 - `docker-compose.yml` orchestrates db/api/web/cloudflared/watchtower
@@ -41,6 +41,17 @@ cd api
 npx drizzle-kit generate:pg
 npx drizzle-kit migrate
 ```
+
+## Debt Manager (ใหม่)
+- DB tables: `debts`, `debt_payments`, `daily_reserve`
+- API routes:
+  - `GET/POST /debts`
+  - `POST /debts/pay`
+  - `GET /debts/payments`
+  - `GET /debts/reserve-today`
+  - `GET /debts/reserve-summary`
+- Frontend: `/debt-manager` (summary, add debt, due calendar, payment history, calculate today reserve)
+- Dashboard widget: เป้ากันหนี้เดือนนี้ (remaining & collected)
 
 ## PWA
 - `public/manifest.webmanifest`
