@@ -190,7 +190,7 @@ export default function PosPage() {
               <button
                 key={p.id}
                 onClick={() => addToCart(p.id)}
-                className="relative group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="relative group flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
                 <div className="absolute right-2 top-2 z-10">
                   <span
@@ -217,13 +217,13 @@ export default function PosPage() {
                     className="object-cover transition group-hover:scale-105"
                   />
                 </div>
-                <div className="space-y-1 p-3">
+                <div className="flex-1 space-y-1 p-3 flex flex-col">
                   <div className="flex items-center justify-between text-xs text-slate-600">
                     <span>{p.category}</span>
                     {p.active ? <Badge tone="green">On shelf</Badge> : <Badge tone="gray">Hidden</Badge>}
                   </div>
                   <div className="font-semibold text-slate-900 leading-tight">{p.name}</div>
-                  <div className="text-lg font-extrabold text-slate-900">฿ {p.price.toFixed(0)}</div>
+                  <div className="mt-auto text-lg font-extrabold text-slate-900">฿ {p.price.toFixed(0)}</div>
                 </div>
               </button>
             ))}
