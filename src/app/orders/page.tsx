@@ -11,6 +11,7 @@ export default function OrdersPage() {
   const { orders, updateOrderStatus, initFromApi } = usePosStore();
   const columns = ['pending', 'prepping', 'ready', 'served'] as const;
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'prepping' | 'ready' | 'served'>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'cash' | 'promptpay' | 'card'>('all');
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -18,17 +19,60 @@ export default function OrdersPage() {
     }, 5000);
     return () => clearInterval(id);
   }, [initFromApi]);
+
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'all') return orders;
     return orders.filter((o) => o.status === statusFilter);
   }, [orders, statusFilter]);
 
-  const sortedOrders = useMemo(
+  const sortedQueue = useMemo(
     () => [...filteredOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [filteredOrders],
   );
+
   const totalRevenue = useMemo(() => orders.reduce((sum, o) => sum + o.total, 0), [orders]);
   const visibleColumns = statusFilter === 'all' ? columns : ([statusFilter] as const);
+
+  const historyOrders = useMemo(() => {
+    if (paymentFilter === 'all') return orders;
+    return orders.filter((o) => o.paymentMethod === paymentFilter);
+  }, [orders, paymentFilter]);
+
+  const historySummary = useMemo(() => {
+    const total = historyOrders.reduce((sum, o) => sum + o.total, 0);
+    return { total, count: historyOrders.length };
+  }, [historyOrders]);
+
+  const groupedHistory = useMemo(() => {
+    const map = new Map<string, { date: string; total: number; orders: typeof orders }>();
+    historyOrders.forEach((o) => {
+      const key = new Date(o.createdAt).toISOString().slice(0, 10);
+      const current = map.get(key);
+      if (current) {
+        current.total += o.total;
+        current.orders.push(o);
+      } else {
+        map.set(key, { date: key, total: o.total, orders: [o] as typeof orders });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [historyOrders]);
+
+  const exportCsv = () => {
+    if (typeof window === 'undefined') return;
+    const rows = [
+      ['orderNumber', 'status', 'paymentMethod', 'total', 'createdAt'],
+      ...historyOrders.map((o) => [o.orderNumber, o.status, o.paymentMethod, o.total.toString(), o.createdAt]),
+    ];
+    const csv = rows.map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'orders.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-4">
@@ -66,15 +110,13 @@ export default function OrdersPage() {
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3">
-              {filteredOrders
+              {sortedQueue
                 .filter((o) => o.status === status)
                 .map((order) => (
                   <div key={order.id} className="rounded-lg border border-slate-200 p-3 shadow-sm bg-white">
                     <div className="flex items-center justify-between text-sm">
                       <div className="font-semibold">{order.orderNumber}</div>
-                      <span className="text-slate-600">
-                        {format(new Date(order.createdAt), 'HH:mm')}
-                      </span>
+                      <span className="text-slate-600">{format(new Date(order.createdAt), 'HH:mm')}</span>
                     </div>
                     <ul className="mt-2 space-y-1 text-sm text-slate-900">
                       {order.items.map((it) => (
@@ -109,21 +151,48 @@ export default function OrdersPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Sales History</CardTitle>
+        <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <CardTitle>Sales History</CardTitle>
+            <div className="text-sm text-slate-600">บิล {historySummary.count} | ฿ {historySummary.total.toFixed(2)}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(['all', 'cash', 'promptpay', 'card'] as const).map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={paymentFilter === p ? 'primary' : 'secondary'}
+                onClick={() => setPaymentFilter(p)}
+                className="capitalize"
+              >
+                {p}
+              </Button>
+            ))}
+            <Button size="sm" variant="outline" onClick={exportCsv}>Export CSV</Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {sortedOrders.slice(0, 20).map((order) => (
-            <div key={order.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <span>{order.orderNumber}</span>
-                  <Badge tone={order.status === 'served' ? 'green' : 'gray'}>{order.status}</Badge>
-                  <Badge tone="blue">{order.paymentMethod}</Badge>
-                </div>
-                <div className="text-xs text-slate-600">{format(new Date(order.createdAt), 'dd MMM yyyy HH:mm')}</div>
+        <CardContent className="space-y-4">
+          {groupedHistory.map((group) => (
+            <div key={group.date} className="space-y-2 rounded-lg border border-slate-200 p-3">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-slate-900">{format(new Date(group.date), 'dd MMM yyyy')}</div>
+                <div className="text-sm font-semibold text-slate-800">฿ {group.total.toFixed(2)}</div>
               </div>
-              <div className="text-right font-semibold text-slate-900">฿ {order.total.toFixed(2)}</div>
+              <div className="space-y-1">
+                {group.orders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <span>{order.orderNumber}</span>
+                        <Badge tone={order.status === 'served' ? 'green' : 'gray'}>{order.status}</Badge>
+                        <Badge tone="blue">{order.paymentMethod}</Badge>
+                      </div>
+                      <div className="text-xs text-slate-600">{format(new Date(order.createdAt), 'dd MMM yyyy HH:mm')}</div>
+                    </div>
+                    <div className="text-right font-semibold text-slate-900">฿ {order.total.toFixed(2)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </CardContent>
