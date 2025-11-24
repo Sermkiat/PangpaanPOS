@@ -36,6 +36,8 @@ export const api = {
 
   // Recipes
   getRecipes: () => fetchJson<any[]>("/recipes"),
+  getRecipe: (productId: number) => fetchJson<any>(`/recipes/${productId}`),
+  saveRecipe: (productId: number, body: any) => fetchJson<any>(`/recipes/${productId}`, { method: "POST", body: JSON.stringify(body) }),
 
   // Inventory
   getItems: () => fetchJson<any[]>("/items"),

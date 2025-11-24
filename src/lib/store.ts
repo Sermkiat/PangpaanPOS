@@ -59,7 +59,7 @@ export type Order = {
 };
 
 export type Expense = { id: number; category: string; description: string; amount: number; date: string; paymentMethod?: string };
-export type Waste = { id: number; itemId: number; qty: number; reason: string; date: string };
+export type Waste = { id: number; itemId: number; qty: number; reason: string; date: string; name?: string; unit?: string };
 export type AllocationRule = {
   id: number;
   name: string;
@@ -83,6 +83,21 @@ const withNames = (orders: any[], products: Product[]): Order[] => {
         lineTotal: Number(line.lineTotal ?? unitPrice * qty),
         name: line.name || product?.name || `#${line.productId}`,
       } as OrderLine;
+    }),
+  }));
+};
+
+const enrichRecipes = (recipes: any[], items: Item[]): Recipe[] => {
+  return recipes.map((r) => ({
+    ...r,
+    items: (r.items || []).map((it: any) => {
+      const item = items.find((i) => i.id === it.itemId);
+      return {
+        itemId: it.itemId,
+        qty: Number(it.qty ?? 0),
+        itemName: it.itemName || item?.name,
+        costPerUnit: it.costPerUnit ?? item?.costPerUnit ?? 0,
+      } as RecipeItem;
     }),
   }));
 };
@@ -112,6 +127,8 @@ type StoreState = {
   addExpense: (e: Omit<Expense, "id" | "date"> & { date?: string }) => Promise<void>;
   addWaste: (w: Omit<Waste, "id" | "date"> & { date?: string }) => Promise<void>;
   addAllocationRule: (rule: Omit<AllocationRule, "id">) => Promise<void>;
+  saveRecipe: (productId: number, payload: Partial<Recipe> & { items: RecipeItem[] }) => Promise<void>;
+  fetchRecipes: () => Promise<void>;
 };
 
 export const usePosStore = create<StoreState>()((set, get) => ({
@@ -143,7 +160,7 @@ export const usePosStore = create<StoreState>()((set, get) => ({
         products,
         items,
         inventoryMovements,
-        recipes,
+        recipes: enrichRecipes(recipes, items),
         orders: withNames(orders, products),
         expenses: expenses.map((e: any) => ({
           id: e.id,
@@ -159,6 +176,8 @@ export const usePosStore = create<StoreState>()((set, get) => ({
           qty: Number(w.qty ?? 0),
           reason: w.reason,
           date: w.date || w.recordedOn || new Date().toISOString(),
+          name: w.name,
+          unit: w.unit,
         })),
         allocationRules,
         loading: false,
@@ -236,14 +255,16 @@ export const usePosStore = create<StoreState>()((set, get) => ({
 
   fetchExpenses: async (month) => {
     const rows = await api.getExpenses(month);
-    set({ expenses: rows.map((e: any) => ({
-      id: e.id,
-      category: e.category,
-      description: e.description,
-      amount: Number(e.amount ?? 0),
-      date: e.date || e.incurredOn || new Date().toISOString(),
-      paymentMethod: e.paymentMethod,
-    })) });
+    set({
+      expenses: rows.map((e: any) => ({
+        id: e.id,
+        category: e.category,
+        description: e.description,
+        amount: Number(e.amount ?? 0),
+        date: e.date || e.incurredOn || new Date().toISOString(),
+        paymentMethod: e.paymentMethod,
+      })),
+    });
   },
 
   addExpense: async (e) => {
@@ -267,12 +288,34 @@ export const usePosStore = create<StoreState>()((set, get) => ({
       qty: Number(created.qty ?? w.qty),
       reason: created.reason,
       date: created.date || created.recordedOn || w.date || new Date().toISOString(),
+      name: created.name,
+      unit: created.unit,
     };
-    set((state) => ({ waste: [mapped, ...state.waste] }));
+    set((state) => ({
+      waste: [mapped, ...state.waste],
+      items: created.updatedItem
+        ? state.items.map((it) => (it.id === created.updatedItem.id ? { ...it, ...created.updatedItem } : it))
+        : state.items,
+    }));
   },
 
   addAllocationRule: async (rule) => {
     const created = await api.createAllocation(rule);
     set((state) => ({ allocationRules: [created, ...state.allocationRules] }));
+  },
+
+  saveRecipe: async (productId, payload) => {
+    const saved = await api.saveRecipe(productId, payload);
+    const currentItems = get().items;
+    const recipe = enrichRecipes([saved], currentItems)[0];
+    set((state) => ({
+      recipes: state.recipes.filter((r) => r.productId !== productId).concat(recipe),
+    }));
+  },
+
+  fetchRecipes: async () => {
+    const recipes = await api.getRecipes();
+    const items = get().items;
+    set({ recipes: enrichRecipes(recipes, items) });
   },
 }));
