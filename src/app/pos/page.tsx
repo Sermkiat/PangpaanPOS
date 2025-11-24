@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePosStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -83,12 +83,35 @@ export default function PosPage() {
     return { enriched, subtotal, discountAmt, total };
   }, [cart, products, discount]);
 
+  const playAddSound = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext({ latencyHint: 'interactive' });
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.value = 0.03;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+    } catch (err) {
+      console.warn('sound failed', err);
+    }
+  };
+
   const addToCart = (productId: number) => {
     setCart((prev) => {
       const found = prev.find((c) => c.productId === productId);
       if (found) return prev.map((c) => (c.productId === productId ? { ...c, qty: c.qty + 1 } : c));
       return [...prev, { productId, qty: 1 }];
     });
+    playAddSound();
     setCartToast((c) => c + 1);
   };
 
@@ -153,6 +176,8 @@ export default function PosPage() {
       return () => clearTimeout(t);
     }
   }, [cartToast]);
+
+  useEffect(() => () => { audioCtxRef.current?.close(); }, []);
 
   return (
     <div className="grid gap-4 lg:grid-cols-5">
