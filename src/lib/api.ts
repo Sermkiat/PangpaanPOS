@@ -39,8 +39,9 @@ export const api = {
 
   // Inventory
   getItems: () => fetchJson<any[]>("/items"),
-  adjustItemStock: (id: number, delta: number) =>
-    fetchJson<any>(`/items/${id}/adjust`, { method: "POST", body: JSON.stringify({ delta }) }),
+  adjustItemStock: (id: number, delta: number, reason?: string) =>
+    fetchJson<any>(`/items/${id}/adjust`, { method: "POST", body: JSON.stringify({ delta, reason }) }),
+  getInventoryMovements: () => fetchJson<any[]>("/inventory/movements"),
 
   // Orders
   getOrders: () => fetchJson<any[]>("/orders"),

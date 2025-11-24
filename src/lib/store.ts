@@ -11,6 +11,15 @@ export type Item = {
   reorderPoint: number;
 };
 
+export type InventoryMovement = {
+  id: number;
+  productId: number;
+  change: number;
+  reason?: string | null;
+  createdAt: string;
+  name?: string | null;
+};
+
 export type Product = {
   id: number;
   sku: string;
@@ -81,6 +90,7 @@ const withNames = (orders: any[], products: Product[]): Order[] => {
 type StoreState = {
   products: Product[];
   items: Item[];
+  inventoryMovements: InventoryMovement[];
   recipes: Recipe[];
   orders: Order[];
   expenses: Expense[];
@@ -94,7 +104,8 @@ type StoreState = {
   toggleProductActive: (id: number, active: boolean) => Promise<void>;
   addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"]) => Promise<Order>;
   updateOrderStatus: (id: number, status: Order["status"]) => Promise<void>;
-  adjustItemStock: (itemId: number, delta: number) => Promise<void>;
+  adjustItemStock: (itemId: number, delta: number, reason?: string) => Promise<void>;
+  fetchInventoryMovements: () => Promise<void>;
   addExpense: (e: Omit<Expense, "id" | "date"> & { date?: string }) => Promise<void>;
   addWaste: (w: Omit<Waste, "id" | "date"> & { date?: string }) => Promise<void>;
   addAllocationRule: (rule: Omit<AllocationRule, "id">) => Promise<void>;
@@ -103,6 +114,7 @@ type StoreState = {
 export const usePosStore = create<StoreState>()((set, get) => ({
   products: [],
   items: [],
+  inventoryMovements: [],
   recipes: [],
   orders: [],
   expenses: [],
@@ -113,7 +125,7 @@ export const usePosStore = create<StoreState>()((set, get) => ({
   initFromApi: async () => {
     set({ loading: true });
     try {
-      const [products, items, recipes, orders, expenses, waste, allocationRules] = await Promise.all([
+      const [products, items, recipes, orders, expenses, waste, allocationRules, inventoryMovements] = await Promise.all([
         api.getProducts(),
         api.getItems(),
         api.getRecipes(),
@@ -121,11 +133,13 @@ export const usePosStore = create<StoreState>()((set, get) => ({
         api.getExpenses(),
         api.getWaste(),
         api.getAllocation(),
+        api.getInventoryMovements ? api.getInventoryMovements() : [],
       ]);
 
       set({
         products,
         items,
+        inventoryMovements,
         recipes,
         orders: withNames(orders, products),
         expenses: expenses.map((e: any) => ({
@@ -189,9 +203,21 @@ export const usePosStore = create<StoreState>()((set, get) => ({
     set((state) => ({ orders: state.orders.map((o) => (o.id === id ? { ...o, ...updated, status } : o)) }));
   },
 
-  adjustItemStock: async (itemId, delta) => {
-    const updated = await api.adjustItemStock(itemId, delta);
+  adjustItemStock: async (itemId, delta, reason) => {
+    const updated = await api.adjustItemStock(itemId, delta, reason);
     set((state) => ({ items: state.items.map((it) => (it.id === itemId ? { ...it, ...updated } : it)) }));
+    try {
+      const movements = api.getInventoryMovements ? await api.getInventoryMovements() : [];
+      set({ inventoryMovements: movements });
+    } catch (err) {
+      console.warn("load movements failed", err);
+    }
+  },
+
+  fetchInventoryMovements: async () => {
+    if (!api.getInventoryMovements) return;
+    const rows = await api.getInventoryMovements();
+    set({ inventoryMovements: rows });
   },
 
   addExpense: async (e) => {

@@ -130,3 +130,12 @@ export const dailyReserve = pgTable("daily_reserve", {
   income: integer("income").notNull(),
   reserve: integer("reserve").notNull(),
 });
+
+
+export const inventoryMovements = pgTable("inventory_movements", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  change: doublePrecision("change").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});

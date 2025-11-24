@@ -1,46 +1,83 @@
-'use client';
+"use client";
 
-import { usePosStore } from '@/lib/store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, THead, TBody, TH, TD } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
+import { usePosStore } from "@/lib/store";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, THead, TBody, TH, TD } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "";
+  const dt = new Date(value);
+  return dt.toLocaleString();
+};
 
 export default function InventoryPage() {
-  const { items, adjustItemStock, products, addProduct, toggleProductActive, removeProduct } = usePosStore();
+  const {
+    items,
+    products,
+    inventoryMovements,
+    adjustItemStock,
+    addProduct,
+    toggleProductActive,
+    removeProduct,
+    fetchInventoryMovements,
+  } = usePosStore();
+
   const [adjustments, setAdjustments] = useState<Record<number, number>>({});
+  const [adjustNotes, setAdjustNotes] = useState<Record<number, string>>({});
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [newProduct, setNewProduct] = useState({
-    name: '',
-    sku: '',
-    category: '',
+    name: "",
+    sku: "",
+    category: "",
     price: 0,
-    imageUrl: '',
+    imageUrl: "",
     active: true,
+    costPerUnit: 0,
+    reorderPoint: 0,
+    stockQty: 0,
   });
 
-  const categories = useMemo(() => Array.from(new Set(products.map((p) => p.category))).filter(Boolean), [products]);
+  useEffect(() => {
+    fetchInventoryMovements();
+  }, [fetchInventoryMovements]);
+
+  const categories = useMemo(
+    () => Array.from(new Set(items.map((i) => i.unit))).filter(Boolean),
+    [items],
+  );
+
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return items.filter((it) => {
+      const matchTerm = !term || it.name.toLowerCase().includes(term) || it.code.toLowerCase().includes(term);
+      const matchCategory = categoryFilter === "all" || it.unit === categoryFilter;
+      return matchTerm && matchCategory;
+    });
+  }, [items, search, categoryFilter]);
 
   const applyAdjust = (id: number) => {
-    const delta = adjustments[id] ?? 0;
-    adjustItemStock(id, delta);
+    const delta = adjustments[id];
+    if (!delta) return;
+    adjustItemStock(id, delta, adjustNotes[id]);
     setAdjustments((prev) => ({ ...prev, [id]: 0 }));
-  };
-
-  const handleImageUpload = (file?: File | null) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setNewProduct((p) => ({ ...p, imageUrl: result }));
-    };
-    reader.readAsDataURL(file);
+    setAdjustNotes((prev) => ({ ...prev, [id]: "" }));
   };
 
   const submitProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.category || newProduct.price <= 0) return;
-    addProduct({ ...newProduct });
-    setNewProduct({ name: '', sku: '', category: '', price: 0, imageUrl: '', active: true });
+    addProduct({
+      name: newProduct.name,
+      sku: newProduct.sku,
+      category: newProduct.category,
+      price: newProduct.price,
+      imageUrl: newProduct.imageUrl,
+      active: newProduct.active,
+    });
+    setNewProduct({ name: "", sku: "", category: "", price: 0, imageUrl: "", active: true, costPerUnit: 0, reorderPoint: 0, stockQty: 0 });
   };
 
   return (
@@ -76,7 +113,7 @@ export default function InventoryPage() {
               <Input
                 type="number"
                 placeholder="Price"
-                value={newProduct.price || ''}
+                value={newProduct.price || ""}
                 onChange={(e) => setNewProduct((p) => ({ ...p, price: Number(e.target.value) }))}
               />
               <Input
@@ -85,14 +122,6 @@ export default function InventoryPage() {
                 value={newProduct.imageUrl}
                 onChange={(e) => setNewProduct((p) => ({ ...p, imageUrl: e.target.value }))}
               />
-              <div className="col-span-2 flex items-center gap-2 text-xs text-slate-600">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(e.target.files?.[0] || null)}
-                />
-                <span>หรืออัปโหลดรูป</span>
-              </div>
             </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
@@ -108,7 +137,7 @@ export default function InventoryPage() {
               </Button>
             </div>
             <datalist id="cat-list">
-              {categories.map((c) => (
+              {Array.from(new Set(products.map((p) => p.category))).map((c) => (
                 <option key={c} value={c} />
               ))}
             </datalist>
@@ -116,8 +145,28 @@ export default function InventoryPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Inventory</CardTitle>
+          <CardHeader className="space-y-2">
+            <CardTitle>Stock & Adjustments</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                placeholder="ค้นหาสินค้า / รหัส"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 min-w-[180px]"
+              />
+              <select
+                className="rounded-md border px-3 py-2 text-sm text-slate-700"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="all">ทุกหน่วย</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -131,8 +180,8 @@ export default function InventoryPage() {
                 </tr>
               </THead>
               <TBody>
-                {items.map((it) => (
-                  <tr key={it.id} className={it.stockQty <= it.reorderPoint ? 'bg-rose-50' : ''}>
+                {filteredItems.map((it) => (
+                  <tr key={it.id} className={it.stockQty <= it.reorderPoint ? "bg-rose-50" : ""}>
                     <TD>
                       <div className="font-semibold text-slate-900">{it.name}</div>
                       <div className="text-xs text-slate-600">{it.code}</div>
@@ -141,19 +190,33 @@ export default function InventoryPage() {
                       {it.stockQty.toFixed(1)} {it.unit}
                     </TD>
                     <TD>฿ {it.costPerUnit.toFixed(3)}</TD>
-                    <TD>{it.reorderPoint.toFixed(0)}</TD>
                     <TD>
                       <div className="flex items-center gap-2">
+                        <span>{it.reorderPoint.toFixed(0)}</span>
+                        {it.stockQty <= it.reorderPoint ? (
+                          <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700">Low</span>
+                        ) : null}
+                      </div>
+                    </TD>
+                    <TD>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            className="w-24"
+                            value={adjustments[it.id] ?? ""}
+                            placeholder="+/-"
+                            onChange={(e) => setAdjustments((prev) => ({ ...prev, [it.id]: Number(e.target.value) }))}
+                          />
+                          <Button size="sm" variant="primary" onClick={() => applyAdjust(it.id)}>
+                            Apply
+                          </Button>
+                        </div>
                         <Input
-                          type="number"
-                          className="w-24"
-                          value={adjustments[it.id] ?? ''}
-                          placeholder="+/-"
-                          onChange={(e) => setAdjustments((prev) => ({ ...prev, [it.id]: Number(e.target.value) }))}
+                          placeholder="เหตุผล / หมายเหตุ"
+                          value={adjustNotes[it.id] ?? ""}
+                          onChange={(e) => setAdjustNotes((prev) => ({ ...prev, [it.id]: e.target.value }))}
                         />
-                        <Button size="sm" variant="primary" onClick={() => applyAdjust(it.id)}>
-                          Apply
-                        </Button>
                       </div>
                     </TD>
                   </tr>
@@ -181,7 +244,7 @@ export default function InventoryPage() {
             </THead>
             <TBody>
               {products.map((p) => (
-                <tr key={p.id} className={!p.active ? 'opacity-60' : ''}>
+                <tr key={p.id} className={!p.active ? "opacity-60" : ""}>
                   <TD>
                     <div className="font-semibold text-slate-900">{p.name}</div>
                     <div className="text-xs text-slate-600">{p.sku}</div>
@@ -190,23 +253,53 @@ export default function InventoryPage() {
                   <TD className="font-semibold">฿ {p.price.toFixed(2)}</TD>
                   <TD>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-800">
-                      {p.active ? 'On shelf' : 'Hidden'}
+                      {p.active ? "On shelf" : "Hidden"}
                     </span>
                   </TD>
                   <TD>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => toggleProductActive(p.id, !p.active)}
-                      >
-                        {p.active ? 'Hide' : 'Unhide'}
+                      <Button size="sm" variant="secondary" onClick={() => toggleProductActive(p.id, !p.active)}>
+                        {p.active ? "Hide" : "Unhide"}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => removeProduct(p.id)}>
                         Delete
                       </Button>
                     </div>
                   </TD>
+                </tr>
+              ))}
+            </TBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Movement Log</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <THead>
+              <tr>
+                <TH>เวลา</TH>
+                <TH>สินค้า</TH>
+                <TH>เปลี่ยน</TH>
+                <TH>หมายเหตุ</TH>
+              </tr>
+            </THead>
+            <TBody>
+              {inventoryMovements.map((mv) => (
+                <tr key={mv.id}>
+                  <TD className="whitespace-nowrap text-xs text-slate-600">{formatDateTime(mv.createdAt)}</TD>
+                  <TD>
+                    <div className="font-semibold text-slate-900">{mv.name || "-"}</div>
+                    <div className="text-xs text-slate-600">#{mv.productId}</div>
+                  </TD>
+                  <TD className={mv.change >= 0 ? "text-emerald-700 font-semibold" : "text-rose-700 font-semibold"}>
+                    {mv.change >= 0 ? "+" : ""}
+                    {mv.change}
+                  </TD>
+                  <TD className="text-slate-700">{mv.reason || "-"}</TD>
                 </tr>
               ))}
             </TBody>
