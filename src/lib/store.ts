@@ -51,10 +51,13 @@ export type OrderLine = {
 export type Order = {
   id: number;
   orderNumber: string;
-  status: "pending" | "prepping" | "ready" | "served";
+  paymentStatus: "paid" | "unpaid";
+  fulfillmentStatus: "waiting" | "finished";
   paymentMethod: "cash" | "promptpay" | "card";
   total: number;
   createdAt: string;
+  paidAt?: string | null;
+  servedAt?: string | null;
   items: OrderLine[];
 };
 
@@ -72,6 +75,8 @@ export type AllocationRule = {
 const withNames = (orders: any[], products: Product[]): Order[] => {
   return orders.map((o) => ({
     ...o,
+    paymentStatus: (o as any).paymentStatus || (o as any).status || "paid",
+    fulfillmentStatus: (o as any).fulfillmentStatus || (o as any).status || "waiting",
     items: (o.items || []).map((line: any) => {
       const product = products.find((p) => p.id === line.productId);
       const unitPrice = Number(line.unitPrice ?? product?.price ?? 0);
@@ -117,8 +122,8 @@ type StoreState = {
   updateProduct: (id: number, p: Partial<Omit<Product, "id">>) => Promise<void>;
   removeProduct: (id: number) => Promise<void>;
   toggleProductActive: (id: number, active: boolean) => Promise<void>;
-  addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"]) => Promise<Order>;
-  updateOrderStatus: (id: number, status: Order["status"]) => Promise<void>;
+  addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"], paymentStatus: Order["paymentStatus"], fulfillmentStatus: Order["fulfillmentStatus"]) => Promise<Order>;
+  updateOrderStatus: (id: number, fulfillmentStatus: Order["fulfillmentStatus"]) => Promise<void>;
   adjustItemStock: (itemId: number, delta: number, reason?: string) => Promise<void>;
   addItem: (payload: Omit<Item, "id">) => Promise<void>;
   updateItem: (id: number, payload: Partial<Omit<Item, "id">>) => Promise<void>;
@@ -210,9 +215,11 @@ export const usePosStore = create<StoreState>()((set, get) => ({
     set((state) => ({ products: state.products.map((prod) => (prod.id === id ? { ...prod, ...updated, active } : prod)) }));
   },
 
-  addOrder: async (lines, paymentMethod) => {
+  addOrder: async (lines, paymentMethod, paymentStatus, fulfillmentStatus) => {
     const payload = {
       paymentMethod,
+      paymentStatus,
+      fulfillmentStatus,
       items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
     };
     const created = await api.createOrder(payload);
@@ -221,9 +228,9 @@ export const usePosStore = create<StoreState>()((set, get) => ({
     return orderWithNames;
   },
 
-  updateOrderStatus: async (id, status) => {
-    const updated = await api.updateOrderStatus(id, status);
-    set((state) => ({ orders: state.orders.map((o) => (o.id === id ? { ...o, ...updated, status } : o)) }));
+  updateOrderStatus: async (id, fulfillmentStatus) => {
+    const updated = await api.updateOrderStatus(id, fulfillmentStatus);
+    set((state) => ({ orders: state.orders.map((o) => (o.id === id ? { ...o, ...updated, fulfillmentStatus } : o)) }));
   },
 
   adjustItemStock: async (itemId, delta, reason) => {

@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
     const gpToday = revenueToday - expensesToday - wasteCostToday;
     const gpMonth = revenueMonth - expensesMonth - wasteCostMonth;
-    const openOrders = orders.filter((o) => o.status === "pending" || o.status === "prepping").length;
+    const openOrders = orders.filter((o) => o.fulfillmentStatus === "waiting").length;
 
     return { revenueToday, revenueMonth, expensesToday, expensesMonth, wasteCostToday, wasteCostMonth, gpToday, gpMonth, openOrders };
   }, [orders, expenses, waste, items]);

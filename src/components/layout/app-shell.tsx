@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { orders } = usePosStore();
   const badgeCount = React.useMemo(() => {
     return orders
-      .filter((o) => o.status !== "served")
+      .filter((o) => o.fulfillmentStatus === "waiting")
       .reduce((sum, o) => sum + (o.items?.reduce((s, it) => s + (it.qty || 0), 0) || 0), 0);
   }, [orders]);
   const buildId =

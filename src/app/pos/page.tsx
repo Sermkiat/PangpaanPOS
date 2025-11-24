@@ -21,7 +21,8 @@ export default function PosPage() {
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState<number>(0);
-  const [payment, setPayment] = useState<'cash' | 'promptpay'>('cash');
+  const [payment, setPayment] = useState<'cash' | 'promptpay' | 'card'>('cash');
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
   const [cashValue, setCashValue] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
   const [cartToast, setCartToast] = useState<number>(0);
@@ -134,7 +135,7 @@ export default function PosPage() {
     setDiscount(0);
   };
 
-  const cashNumber = Number(cashValue) || 0;
+  const cashNumber = paymentStatus === 'paid' && payment === 'cash' ? Number(cashValue) || 0 : 0;
   const change = Math.max(0, cashNumber - totals.total);
 
   const bumpCash = (amount: number) => {
@@ -163,7 +164,7 @@ export default function PosPage() {
         qty: line.qty,
         unitPrice: line.unitPrice,
       }));
-      await addOrder(lines, payment);
+      await addOrder(lines, payment, paymentStatus, 'waiting');
       setShowConfirm(false);
       clearCart();
     } finally {
@@ -348,7 +349,7 @@ export default function PosPage() {
             <div className="space-y-2">
               <div className="text-sm font-semibold text-slate-800">Payment Method</div>
               <div className="flex gap-4 text-sm text-slate-700">
-                {(['cash', 'promptpay'] as const).map((method) => (
+                {(['cash', 'promptpay', 'card'] as const).map((method) => (
                   <label key={method} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -376,6 +377,28 @@ export default function PosPage() {
             </div>
 
             <div className="space-y-2">
+              <div className="text-sm font-semibold text-slate-800">สถานะการชำระ</div>
+              <div className="flex gap-4 text-sm text-slate-700">
+                {([
+                  { value: 'paid', label: 'จ่ายแล้ว (รอรับเค้ก)' },
+                  { value: 'unpaid', label: 'ยังไม่จ่าย (รอรับเค้ก)' },
+                ] as const).map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentStatus"
+                      value={opt.value}
+                      checked={paymentStatus === opt.value}
+                      onChange={() => setPaymentStatus(opt.value)}
+                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <div className="text-sm font-semibold text-slate-800">เงินรับมา</div>
               <Input
                 type="number"
@@ -384,7 +407,7 @@ export default function PosPage() {
                 value={cashValue}
                 onChange={(e) => setCashValue(e.target.value)}
                 placeholder="0.00"
-                disabled={payment !== 'cash'}
+                disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
               />
               <div className="grid grid-cols-4 gap-2">
                 {[1, 5, 10, 20, 50, 100, 500, 1000].map((amt) => (
@@ -393,7 +416,7 @@ export default function PosPage() {
                     type="button"
                     onClick={() => bumpCash(amt)}
                     className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-200"
-                    disabled={payment !== 'cash'}
+                    disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
                   >
                     +{amt}
                   </button>
@@ -402,7 +425,7 @@ export default function PosPage() {
                   type="button"
                   onClick={() => setCashExact(totals.total)}
                   className="col-span-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  disabled={payment !== 'cash'}
+                  disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
                 >
                   Exact
                 </button>
@@ -410,7 +433,7 @@ export default function PosPage() {
                   type="button"
                   onClick={() => setCashValue('')}
                   className="col-span-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  disabled={payment !== 'cash'}
+                  disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
                 >
                   Clear Cash
                 </button>
@@ -468,6 +491,10 @@ export default function PosPage() {
               <div className="flex justify-between"><span>Subtotal</span><span>฿ {totals.subtotal.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>Discount</span><span>-฿ {totals.discountAmt.toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-slate-900"><span>Total</span><span>฿ {totals.total.toFixed(2)}</span></div>
+            </div>
+            <div className="mt-3 text-sm text-slate-800">
+              <div className="flex justify-between"><span>ชำระแบบ</span><span className="capitalize">{payment}</span></div>
+              <div className="flex justify-between"><span>สถานะจ่าย</span><span className={paymentStatus === 'paid' ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-semibold'}>{paymentStatus}</span></div>
             </div>
             <div className="mt-4 flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>ยกเลิก</Button>

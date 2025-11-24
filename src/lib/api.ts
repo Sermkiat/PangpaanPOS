@@ -45,13 +45,14 @@ export const api = {
   updateItem: (id: number, body: any) => fetchJson<any>(`/items/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   adjustItemStock: (id: number, delta: number, reason?: string) =>
     fetchJson<any>(`/items/${id}/adjust`, { method: "POST", body: JSON.stringify({ delta, reason }) }),
+  importProducts: (csv: string) => fetchJson<any>("/products/import", { method: "POST", body: JSON.stringify({ csv }) }),
   getInventoryMovements: () => fetchJson<any[]>("/inventory/movements"),
 
   // Orders
   getOrders: () => fetchJson<any[]>("/orders"),
   createOrder: (body: any) => fetchJson<any>("/orders", { method: "POST", body: JSON.stringify(body) }),
-  updateOrderStatus: (id: number, status: string) =>
-    fetchJson<any>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  updateOrderStatus: (id: number, fulfillmentStatus: string) =>
+    fetchJson<any>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ fulfillmentStatus }) }),
 
   // Finance
   getExpenses: (month?: string) => fetchJson<any[]>(month ? `/expenses?month=${month}` : "/expenses"),

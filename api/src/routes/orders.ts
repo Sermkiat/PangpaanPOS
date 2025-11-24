@@ -8,8 +8,9 @@ import { eq } from "drizzle-orm";
 const router = Router();
 
 const orderInput = z.object({
-  status: z.string().default("pending"),
   paymentMethod: z.string().default("cash"),
+  paymentStatus: z.enum(["paid", "unpaid"]).default("paid"),
+  fulfillmentStatus: z.enum(["waiting", "finished"]).default("waiting"),
   notes: z.string().optional(),
   items: z
     .array(
@@ -62,9 +63,12 @@ router.post(
       .insert(orders)
       .values({
         orderNumber: randomOrderNumber(),
-        status: input.status,
+        status: input.fulfillmentStatus,
+        paymentStatus: input.paymentStatus,
+        fulfillmentStatus: input.fulfillmentStatus,
         total: orderTotal,
         paymentMethod: input.paymentMethod,
+        paidAt: input.paymentStatus === "paid" ? new Date() : null,
         notes: input.notes,
       })
       .returning();
@@ -87,10 +91,15 @@ router.patch(
   "/orders/:id/status",
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
-    const { status } = z.object({ status: z.string().min(1) }).parse(req.body);
+    const { fulfillmentStatus } = z.object({ fulfillmentStatus: z.enum(["waiting", "finished"]) }).parse(req.body);
     const [updated] = await db
       .update(orders)
-      .set({ status, updatedAt: new Date() })
+      .set({
+        fulfillmentStatus,
+        status: fulfillmentStatus,
+        servedAt: fulfillmentStatus === "finished" ? new Date() : null,
+        updatedAt: new Date(),
+      })
       .where(eq(orders.id, id))
       .returning();
     if (!updated) return res.status(404).json({ success: false, error: "Order not found" });
