@@ -41,7 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-slate-900 text-white" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 6px)" }}>
+      <header
+        className="sticky top-0 z-20 border-b border-slate-200 bg-slate-900 text-white"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
+      >
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
           <div className="flex items-center gap-2">
             <Image src="/logo-pp.svg" alt="Pangpaan" width={40} height={40} className="rounded-md" />
