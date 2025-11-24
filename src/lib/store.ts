@@ -105,6 +105,8 @@ type StoreState = {
   addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"]) => Promise<Order>;
   updateOrderStatus: (id: number, status: Order["status"]) => Promise<void>;
   adjustItemStock: (itemId: number, delta: number, reason?: string) => Promise<void>;
+  addItem: (payload: Omit<Item, "id">) => Promise<void>;
+  updateItem: (id: number, payload: Partial<Omit<Item, "id">>) => Promise<void>;
   fetchInventoryMovements: () => Promise<void>;
   addExpense: (e: Omit<Expense, "id" | "date"> & { date?: string }) => Promise<void>;
   addWaste: (w: Omit<Waste, "id" | "date"> & { date?: string }) => Promise<void>;
@@ -212,6 +214,16 @@ export const usePosStore = create<StoreState>()((set, get) => ({
     } catch (err) {
       console.warn("load movements failed", err);
     }
+  },
+
+  addItem: async (payload) => {
+    const created = await api.createItem(payload);
+    set((state) => ({ items: [...state.items, created] }));
+  },
+
+  updateItem: async (id, payload) => {
+    const updated = await api.updateItem(id, payload);
+    set((state) => ({ items: state.items.map((it) => (it.id === id ? { ...it, ...updated } : it)) }));
   },
 
   fetchInventoryMovements: async () => {

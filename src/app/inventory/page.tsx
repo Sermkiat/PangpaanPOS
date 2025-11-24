@@ -13,12 +13,23 @@ const formatDateTime = (value?: string) => {
   return dt.toLocaleString();
 };
 
+const emptyItem = {
+  code: "",
+  name: "",
+  unit: "",
+  stockQty: 0,
+  costPerUnit: 0,
+  reorderPoint: 0,
+};
+
 export default function InventoryPage() {
   const {
     items,
     products,
     inventoryMovements,
     adjustItemStock,
+    addItem,
+    updateItem,
     addProduct,
     toggleProductActive,
     removeProduct,
@@ -29,6 +40,8 @@ export default function InventoryPage() {
   const [adjustNotes, setAdjustNotes] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [itemForm, setItemForm] = useState(emptyItem);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [newProduct, setNewProduct] = useState({
     name: "",
     sku: "",
@@ -67,6 +80,46 @@ export default function InventoryPage() {
     setAdjustNotes((prev) => ({ ...prev, [id]: "" }));
   };
 
+  const submitItem = async () => {
+    if (!itemForm.code || !itemForm.name) return;
+    if (editingItemId) {
+      await updateItem(editingItemId, { ...itemForm });
+    } else {
+      await addItem({ ...itemForm });
+    }
+    setItemForm(emptyItem);
+    setEditingItemId(null);
+  };
+
+  const startEditItem = (id: number) => {
+    const target = items.find((it) => it.id === id);
+    if (!target) return;
+    setItemForm({
+      code: target.code,
+      name: target.name,
+      unit: target.unit,
+      stockQty: Number(target.stockQty ?? 0),
+      costPerUnit: Number(target.costPerUnit ?? 0),
+      reorderPoint: Number(target.reorderPoint ?? 0),
+    });
+    setEditingItemId(id);
+  };
+
+  const resetItemForm = () => {
+    setItemForm(emptyItem);
+    setEditingItemId(null);
+  };
+
+  const handleImageUpload = (file?: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setNewProduct((p) => ({ ...p, imageUrl: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const submitProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.category || newProduct.price <= 0) return;
     addProduct({
@@ -86,6 +139,62 @@ export default function InventoryPage() {
         <p className="text-sm text-slate-600">Ingredients, supplies, and product catalog</p>
         <h1 className="text-2xl font-extrabold text-slate-900">Inventory & Products</h1>
       </div>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle>Stock Item (เพิ่ม/แก้ไข)</CardTitle>
+          <p className="text-xs text-slate-600">รหัสสินค้า, หน่วย, ต้นทุน, สต็อก, จุดเตือนสต็อกต่ำ</p>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Input
+              placeholder="Code / SKU"
+              value={itemForm.code}
+              onChange={(e) => setItemForm((p) => ({ ...p, code: e.target.value }))}
+            />
+            <Input
+              placeholder="ชื่อสินค้า"
+              className="md:col-span-2"
+              value={itemForm.name}
+              onChange={(e) => setItemForm((p) => ({ ...p, name: e.target.value }))}
+            />
+            <Input
+              placeholder="หน่วย (เช่น กก., ถุง, กล่อง)"
+              value={itemForm.unit}
+              onChange={(e) => setItemForm((p) => ({ ...p, unit: e.target.value }))}
+            />
+            <Input
+              type="number"
+              placeholder="ต้นทุนต่อหน่วย"
+              value={itemForm.costPerUnit || ""}
+              onChange={(e) => setItemForm((p) => ({ ...p, costPerUnit: Number(e.target.value) }))}
+            />
+            <Input
+              type="number"
+              placeholder="สต็อกเริ่มต้น"
+              value={itemForm.stockQty || ""}
+              onChange={(e) => setItemForm((p) => ({ ...p, stockQty: Number(e.target.value) }))}
+            />
+            <Input
+              type="number"
+              placeholder="จุดเตือนสต็อกต่ำ"
+              value={itemForm.reorderPoint || ""}
+              onChange={(e) => setItemForm((p) => ({ ...p, reorderPoint: Number(e.target.value) }))}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {editingItemId ? (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">กำลังแก้ไข #{editingItemId}</span>
+            ) : null}
+            <Button variant="primary" onClick={submitItem}>
+              {editingItemId ? "Update Item" : "Save Item"}
+            </Button>
+            <Button variant="outline" onClick={resetItemForm}>
+              Reset
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -122,6 +231,10 @@ export default function InventoryPage() {
                 value={newProduct.imageUrl}
                 onChange={(e) => setNewProduct((p) => ({ ...p, imageUrl: e.target.value }))}
               />
+              <div className="col-span-2 flex items-center gap-2 text-xs text-slate-600">
+                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e.target.files?.[0] || null)} />
+                <span>หรืออัปโหลดรูป</span>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
@@ -177,6 +290,7 @@ export default function InventoryPage() {
                   <TH>Cost/unit</TH>
                   <TH>Reorder</TH>
                   <TH>Adjust</TH>
+                  <TH>Actions</TH>
                 </tr>
               </THead>
               <TBody>
@@ -218,6 +332,11 @@ export default function InventoryPage() {
                           onChange={(e) => setAdjustNotes((prev) => ({ ...prev, [it.id]: e.target.value }))}
                         />
                       </div>
+                    </TD>
+                    <TD>
+                      <Button size="sm" variant="secondary" onClick={() => startEditItem(it.id)}>
+                        Edit
+                      </Button>
                     </TD>
                   </tr>
                 ))}
