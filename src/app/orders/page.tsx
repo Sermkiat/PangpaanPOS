@@ -5,16 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 
 export default function OrdersPage() {
-  const { orders, updateOrderStatus } = usePosStore();
+  const { orders, updateOrderStatus, initFromApi } = usePosStore();
   const columns = ['pending', 'prepping', 'ready', 'served'] as const;
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'prepping' | 'ready' | 'served'>('all');
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      initFromApi?.();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [initFromApi]);
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'all') return orders;
+    return orders.filter((o) => o.status === statusFilter);
+  }, [orders, statusFilter]);
+
   const sortedOrders = useMemo(
-    () => [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [orders],
+    () => [...filteredOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [filteredOrders],
   );
   const totalRevenue = useMemo(() => orders.reduce((sum, o) => sum + o.total, 0), [orders]);
+  const visibleColumns = statusFilter === 'all' ? columns : ([statusFilter] as const);
 
   return (
     <div className="space-y-4">
@@ -28,17 +42,31 @@ export default function OrdersPage() {
           <div>{orders.length} orders</div>
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {(['all', ...columns] as const).map((status) => (
+          <Button
+            key={status}
+            size="sm"
+            variant={statusFilter === status ? 'primary' : 'secondary'}
+            onClick={() => setStatusFilter(status)}
+            className="capitalize"
+          >
+            {status}
+          </Button>
+        ))}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {columns.map((status) => (
+        {visibleColumns.map((status) => (
           <Card key={status}>
             <CardHeader className="flex items-center justify-between">
               <CardTitle className="capitalize">{status}</CardTitle>
               <Badge tone={status === 'ready' ? 'green' : status === 'pending' ? 'gray' : 'gray'}>
-                {orders.filter((o) => o.status === status).length}
+                {filteredOrders.filter((o) => o.status === status).length}
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3">
-              {orders
+              {filteredOrders
                 .filter((o) => o.status === status)
                 .map((order) => (
                   <div key={order.id} className="rounded-lg border border-slate-200 p-3 shadow-sm bg-white">
