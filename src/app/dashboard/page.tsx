@@ -1,16 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { usePosStore } from '@/lib/store';
+import { useDebtStore } from '@/store/debtStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { BarChart3, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { orders, expenses, waste } = usePosStore();
+  const { summary, fetchSummary } = useDebtStore();
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
 
   const stats = useMemo(() => {
     const revenue = orders.reduce((sum, o) => sum + o.total, 0);
@@ -51,6 +57,19 @@ export default function DashboardPage() {
         <StatCard title="Expenses (month)" value={`฿ ${stats.expenseTotal.toFixed(0)}`} detail="Logged expenses" tone="gray" />
         <StatCard title="Gross Profit" value={`฿ ${stats.gp.toFixed(0)}`} detail="Revenue - expenses" tone={stats.gp >= 0 ? 'green' : 'red'} />
       </div>
+
+      <Card className="bg-emerald-50 border-emerald-100">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-emerald-900 text-sm">เป้ากันหนี้เดือนนี้</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between">
+          <div>
+            <div className="text-2xl font-bold text-emerald-800">฿ {summary?.remaining?.toLocaleString('th-TH') ?? '0'}</div>
+            <div className="text-xs text-emerald-700">เหลือกันอีกในเดือนนี้</div>
+          </div>
+          <div className="text-sm text-emerald-700">สะสมแล้ว: ฿ {summary?.monthCollected?.toLocaleString('th-TH') ?? '0'}</div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex items-center justify-between">

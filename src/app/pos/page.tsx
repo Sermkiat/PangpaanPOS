@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePosStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ export default function PosPage() {
   const [discount, setDiscount] = useState<number>(0);
   const [payment, setPayment] = useState<'cash' | 'promptpay'>('cash');
   const [cashValue, setCashValue] = useState<string>('');
+  const [showConfirm, setShowConfirm] = useState<boolean>(false);
+  const [cartToast, setCartToast] = useState<number>(0);
 
   const categories = ['All', ...new Set(products.map((p) => p.category))];
   const filtered = products.filter((p) => activeCategory === 'All' || p.category === activeCategory);
@@ -42,6 +44,7 @@ export default function PosPage() {
       if (found) return prev.map((c) => (c.productId === productId ? { ...c, qty: c.qty + 1 } : c));
       return [...prev, { productId, qty: 1 }];
     });
+    setCartToast((c) => c + 1);
   };
 
   const updateQty = (productId: number, delta: number) => {
@@ -78,6 +81,10 @@ export default function PosPage() {
 
   const handlePay = () => {
     if (totals.enriched.length === 0) return;
+    setShowConfirm(true);
+  };
+
+  const confirmPay = () => {
     const lines = totals.enriched.map((line) => ({
       productId: line.productId,
       name: line.name,
@@ -85,8 +92,16 @@ export default function PosPage() {
       unitPrice: line.unitPrice,
     }));
     addOrder(lines, payment);
+    setShowConfirm(false);
     clearCart();
   };
+
+  useEffect(() => {
+    if (cartToast > 0) {
+      const t = setTimeout(() => setCartToast(0), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [cartToast]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-5">
@@ -112,9 +127,8 @@ export default function PosPage() {
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>POS Screen</CardTitle>
-            <Badge tone="gray">iPad friendly</Badge>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <CardContent className="grid gap-3 grid-cols-2 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((p) => (
               <button
                 key={p.id}
@@ -203,7 +217,7 @@ export default function PosPage() {
         </Card>
 
         <Card>
-          <CardContent className="space-y-4 pt-6 text-slate-900">
+          <CardContent className="space-y-4 pt-6 text-slate-900 relative">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Subtotal</span>
               <span className="font-semibold">฿ {totals.subtotal.toFixed(2)}</span>
@@ -248,6 +262,17 @@ export default function PosPage() {
                   </label>
                 ))}
               </div>
+              {payment === 'promptpay' && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+                  <div className="text-sm font-semibold text-slate-800 mb-2">PromptPay QR</div>
+                  <img
+                    src="https://promptpay.io/0868938788.png"
+                    alt="PromptPay QR"
+                    className="mx-auto h-32 w-32 object-contain"
+                  />
+                  <div className="mt-2 text-sm font-bold text-slate-900">฿ {totals.total.toFixed(2)}</div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -292,10 +317,10 @@ export default function PosPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-base font-semibold text-slate-900">
-              <span>เงินทอน</span>
-              <span>฿ {change.toFixed(2)}</span>
-            </div>
+              <div className="flex items-center justify-between text-base font-semibold text-slate-900">
+                <span>เงินทอน</span>
+                <span>฿ {change.toFixed(2)}</span>
+              </div>
 
             <div className="flex gap-3 pt-2">
               <button
@@ -314,9 +339,43 @@ export default function PosPage() {
                 Pay ฿ {totals.total.toFixed(2)}
               </button>
             </div>
+
+            {cartToast > 0 && (
+              <div className="absolute -top-4 right-4 rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-emerald-950 shadow">
+                {cart.reduce((s, l) => s + l.qty, 0)} items
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-slate-900">สรุปรายการ</h3>
+              <button onClick={() => setShowConfirm(false)} className="text-slate-500 hover:text-slate-800 text-sm">Close</button>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-auto">
+              {totals.enriched.map((line) => (
+                <div key={line.productId} className="flex justify-between text-sm text-slate-800">
+                  <span>{line.qty} × {line.name}</span>
+                  <span>฿ {line.lineTotal.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 border-t border-slate-200 pt-3 space-y-1 text-sm text-slate-800">
+              <div className="flex justify-between"><span>Subtotal</span><span>฿ {totals.subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span>Discount</span><span>-฿ {totals.discountAmt.toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold text-slate-900"><span>Total</span><span>฿ {totals.total.toFixed(2)}</span></div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>ยกเลิก</Button>
+              <Button className="flex-1" onClick={confirmPay}>ยืนยันชำระ</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

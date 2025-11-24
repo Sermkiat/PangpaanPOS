@@ -4,6 +4,10 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { Providers } from "./providers";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 

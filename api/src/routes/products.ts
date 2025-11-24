@@ -12,7 +12,7 @@ const productInput = z.object({
   name: z.string().min(1),
   category: z.string().default("General"),
   price: z.number().nonnegative(),
-  imageUrl: z.string().url().optional(),
+  imageUrl: z.string().optional(),
   active: z.boolean().optional(),
   components: z
     .array(

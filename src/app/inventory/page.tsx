@@ -27,6 +27,16 @@ export default function InventoryPage() {
     setAdjustments((prev) => ({ ...prev, [id]: 0 }));
   };
 
+  const handleImageUpload = (file?: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setNewProduct((p) => ({ ...p, imageUrl: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const submitProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.category || newProduct.price <= 0) return;
     addProduct({ ...newProduct });
@@ -58,7 +68,7 @@ export default function InventoryPage() {
                 onChange={(e) => setNewProduct((p) => ({ ...p, sku: e.target.value }))}
               />
               <Input
-                placeholder="Category"
+                placeholder="หมวดสินค้า"
                 list="cat-list"
                 value={newProduct.category}
                 onChange={(e) => setNewProduct((p) => ({ ...p, category: e.target.value }))}
@@ -75,6 +85,14 @@ export default function InventoryPage() {
                 value={newProduct.imageUrl}
                 onChange={(e) => setNewProduct((p) => ({ ...p, imageUrl: e.target.value }))}
               />
+              <div className="col-span-2 flex items-center gap-2 text-xs text-slate-600">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e.target.files?.[0] || null)}
+                />
+                <span>หรืออัปโหลดรูป</span>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm">

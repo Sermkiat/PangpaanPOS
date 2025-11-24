@@ -8,12 +8,14 @@ import inventoryRoutes from "./routes/inventory.js";
 import recipeRoutes from "./routes/recipes.js";
 import orderRoutes from "./routes/orders.js";
 import financeRoutes from "./routes/finance.js";
+import debtsRoutes from "./routes/debts.js";
+import reserveRoutes from "./routes/reserve.js";
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: "*"}));
-app.use(express.json({ limit: "1mb" }));
+app.use(cors({ origin: "*" }));
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
@@ -22,6 +24,8 @@ app.use("/", inventoryRoutes);
 app.use("/", recipeRoutes);
 app.use("/", orderRoutes);
 app.use("/", financeRoutes);
+app.use("/", debtsRoutes);
+app.use("/", reserveRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response) => {
   console.error(err);

@@ -9,7 +9,7 @@ export default function CostingPage() {
 
   const costing = products.map((product) => {
     const recipe = recipes.find((r) => r.productId === product.id);
-    const batchCost = recipe?.items.reduce((sum, it) => sum + it.qty * it.costPerUnit, 0) ?? 0;
+    const batchCost = recipe?.items.reduce((sum, it) => sum + it.qty * (it.costPerUnit ?? 0), 0) ?? 0;
     const unitCost = recipe ? batchCost / recipe.yieldQty : 0;
     const gp = product.price - unitCost;
     const margin = product.price ? (gp / product.price) * 100 : 0;

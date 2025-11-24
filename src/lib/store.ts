@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { nanoid } from "nanoid";
+import api from "./api";
 
 export type Item = {
   id: number;
@@ -21,8 +21,7 @@ export type Product = {
   active: boolean;
 };
 
-export type RecipeItem = { itemId: number; qty: number; itemName: string; costPerUnit: number };
-
+export type RecipeItem = { itemId: number; qty: number; itemName?: string; costPerUnit?: number };
 export type Recipe = {
   id: number;
   productId: number;
@@ -32,9 +31,16 @@ export type Recipe = {
   items: RecipeItem[];
 };
 
-export type OrderLine = { productId: number; name: string; qty: number; unitPrice: number };
+export type OrderLine = {
+  productId: number;
+  name?: string;
+  qty: number;
+  unitPrice: number;
+  lineTotal?: number;
+};
+
 export type Order = {
-  id: string;
+  id: number;
   orderNumber: string;
   status: "pending" | "prepping" | "ready" | "served";
   paymentMethod: "cash" | "promptpay" | "card";
@@ -43,15 +49,33 @@ export type Order = {
   items: OrderLine[];
 };
 
-export type Expense = { id: string; category: string; description: string; amount: number; date: string };
-export type Waste = { id: string; itemId: number; qty: number; reason: string; date: string };
+export type Expense = { id: number; category: string; description: string; amount: number; date: string };
+export type Waste = { id: number; itemId: number; qty: number; reason: string; date: string };
 export type AllocationRule = {
-  id: string;
+  id: number;
   name: string;
   ruleType: string;
   percentage: number;
   target: string;
   active: boolean;
+};
+
+const withNames = (orders: any[], products: Product[]): Order[] => {
+  return orders.map((o) => ({
+    ...o,
+    items: (o.items || []).map((line: any) => {
+      const product = products.find((p) => p.id === line.productId);
+      const unitPrice = Number(line.unitPrice ?? product?.price ?? 0);
+      const qty = Number(line.qty ?? 0);
+      return {
+        ...line,
+        qty,
+        unitPrice,
+        lineTotal: Number(line.lineTotal ?? unitPrice * qty),
+        name: line.name || product?.name || `#${line.productId}`,
+      } as OrderLine;
+    }),
+  }));
 };
 
 type StoreState = {
@@ -62,174 +86,140 @@ type StoreState = {
   expenses: Expense[];
   waste: Waste[];
   allocationRules: AllocationRule[];
-  addProduct: (p: Omit<Product, "id">) => Product;
-  updateProduct: (id: number, p: Partial<Omit<Product, "id">>) => void;
-  removeProduct: (id: number) => void;
-  toggleProductActive: (id: number, active: boolean) => void;
-  addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"]) => Order;
-  updateOrderStatus: (id: string, status: Order["status"]) => void;
-  adjustItemStock: (itemId: number, delta: number) => void;
-  addExpense: (e: Omit<Expense, "id" | "date"> & { date?: string }) => void;
-  addWaste: (w: Omit<Waste, "id" | "date"> & { date?: string }) => void;
-  addAllocationRule: (rule: Omit<AllocationRule, "id">) => void;
+  loading: boolean;
+  initFromApi: () => Promise<void>;
+  addProduct: (p: Omit<Product, "id">) => Promise<Product>;
+  updateProduct: (id: number, p: Partial<Omit<Product, "id">>) => Promise<void>;
+  removeProduct: (id: number) => Promise<void>;
+  toggleProductActive: (id: number, active: boolean) => Promise<void>;
+  addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"]) => Promise<Order>;
+  updateOrderStatus: (id: number, status: Order["status"]) => Promise<void>;
+  adjustItemStock: (itemId: number, delta: number) => Promise<void>;
+  addExpense: (e: Omit<Expense, "id" | "date"> & { date?: string }) => Promise<void>;
+  addWaste: (w: Omit<Waste, "id" | "date"> & { date?: string }) => Promise<void>;
+  addAllocationRule: (rule: Omit<AllocationRule, "id">) => Promise<void>;
 };
 
-const sampleItems: Item[] = [
-  { id: 1, code: "MILK-1L", name: "Fresh Milk 1L", unit: "ml", stockQty: 5200, costPerUnit: 0.055, reorderPoint: 2000 },
-  { id: 2, code: "FLOUR-AP", name: "Flour AP", unit: "g", stockQty: 12000, costPerUnit: 0.02, reorderPoint: 4000 },
-  { id: 3, code: "SUGAR", name: "Sugar", unit: "g", stockQty: 5600, costPerUnit: 0.018, reorderPoint: 3000 },
-  { id: 4, code: "BUTTER", name: "Butter", unit: "g", stockQty: 2600, costPerUnit: 0.09, reorderPoint: 1200 },
-];
+export const usePosStore = create<StoreState>()((set, get) => ({
+  products: [],
+  items: [],
+  recipes: [],
+  orders: [],
+  expenses: [],
+  waste: [],
+  allocationRules: [],
+  loading: false,
 
-const sampleProducts: Product[] = [
-  {
-    id: 1,
-    sku: "LATTE-ICED",
-    name: "Iced Latte",
-    category: "Coffee",
-    price: 75,
-    imageUrl: "https://images.unsplash.com/photo-1510626176961-4b37d0f0b4fd?auto=format&w=800&q=60",
-    active: true,
-  },
-  {
-    id: 2,
-    sku: "CARAMEL",
-    name: "Caramel Macchiato",
-    category: "Coffee",
-    price: 95,
-    imageUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&w=800&q=60",
-    active: true,
-  },
-  {
-    id: 3,
-    sku: "STRAW-CAKE",
-    name: "Strawberry Shortcake",
-    category: "Bakery",
-    price: 145,
-    imageUrl: "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?auto=format&w=800&q=60",
-    active: true,
-  },
-];
+  initFromApi: async () => {
+    set({ loading: true });
+    try {
+      const [products, items, recipes, orders, expenses, waste, allocationRules] = await Promise.all([
+        api.getProducts(),
+        api.getItems(),
+        api.getRecipes(),
+        api.getOrders(),
+        api.getExpenses(),
+        api.getWaste(),
+        api.getAllocation(),
+      ]);
 
-const sampleRecipes: Recipe[] = [
-  {
-    id: 1,
-    productId: 1,
-    name: "Iced Latte Base",
-    yieldQty: 1,
-    yieldUnit: "cup",
-    items: [
-      { itemId: 1, qty: 250, itemName: "Fresh Milk 1L", costPerUnit: 0.055 },
-      { itemId: 3, qty: 6, itemName: "Sugar", costPerUnit: 0.018 },
-    ],
+      set({
+        products,
+        items,
+        recipes,
+        orders: withNames(orders, products),
+        expenses: expenses.map((e: any) => ({
+          id: e.id,
+          category: e.category,
+          description: e.description,
+          amount: Number(e.amount ?? 0),
+          date: e.date || e.incurredOn || new Date().toISOString(),
+        })),
+        waste: waste.map((w: any) => ({
+          id: w.id,
+          itemId: w.itemId,
+          qty: Number(w.qty ?? 0),
+          reason: w.reason,
+          date: w.date || w.recordedOn || new Date().toISOString(),
+        })),
+        allocationRules,
+        loading: false,
+      });
+    } catch (err) {
+      console.error("initFromApi failed", err);
+      set({ loading: false });
+    }
   },
-  {
-    id: 2,
-    productId: 3,
-    name: "Strawberry Shortcake",
-    yieldQty: 1,
-    yieldUnit: "slice",
-    items: [
-      { itemId: 2, qty: 120, itemName: "Flour AP", costPerUnit: 0.02 },
-      { itemId: 4, qty: 40, itemName: "Butter", costPerUnit: 0.09 },
-      { itemId: 3, qty: 35, itemName: "Sugar", costPerUnit: 0.018 },
-    ],
+
+  addProduct: async (p) => {
+    const created = await api.createProduct(p);
+    set((state) => ({ products: [...state.products, created] }));
+    return created;
   },
-];
 
-const seedOrders: Order[] = [
-  {
-    id: "ord-1",
-    orderNumber: "PP-20241101-0001",
-    status: "prepping",
-    paymentMethod: "promptpay",
-    total: 240,
-    createdAt: new Date().toISOString(),
-    items: [
-      { productId: 1, name: "Iced Latte", qty: 2, unitPrice: 75 },
-      { productId: 3, name: "Strawberry Shortcake", qty: 1, unitPrice: 145 },
-    ],
+  updateProduct: async (id, p) => {
+    const updated = await api.updateProduct(id, p);
+    set((state) => ({ products: state.products.map((prod) => (prod.id === id ? { ...prod, ...updated } : prod)) }));
   },
-];
 
-const seedExpenses: Expense[] = [
-  { id: "exp-1", category: "Utilities", description: "Electricity (Oct)", amount: 3200, date: new Date().toISOString() },
-  { id: "exp-2", category: "Supplies", description: "Coffee beans order", amount: 4500, date: new Date().toISOString() },
-];
-
-const seedWaste: Waste[] = [
-  { id: "w1", itemId: 1, qty: 1, reason: "Spilled milk", date: new Date().toISOString() },
-];
-
-const seedAllocations: AllocationRule[] = [
-  { id: "ar1", name: "COGS", ruleType: "percentage", percentage: 35, target: "Sales", active: true },
-  { id: "ar2", name: "Marketing Fund", ruleType: "percentage", percentage: 5, target: "Sales", active: true },
-];
-
-export const usePosStore = create<StoreState>((set, get) => ({
-  products: sampleProducts,
-  items: sampleItems,
-  recipes: sampleRecipes,
-  orders: seedOrders,
-  expenses: seedExpenses,
-  waste: seedWaste,
-  allocationRules: seedAllocations,
-  addProduct: (p) => {
-    const next: Product = { ...p, id: Date.now() };
-    set((state) => ({ products: [...state.products, next] }));
-    return next;
+  removeProduct: async (id) => {
+    // Soft delete: mark inactive
+    const updated = await api.updateProduct(id, { active: false });
+    set((state) => ({ products: state.products.map((prod) => (prod.id === id ? { ...prod, ...updated, active: false } : prod)) }));
   },
-  updateProduct: (id, p) =>
-    set((state) => ({
-      products: state.products.map((prod) => (prod.id === id ? { ...prod, ...p } : prod)),
-    })),
-  removeProduct: (id) =>
-    set((state) => ({
-      products: state.products.filter((prod) => prod.id !== id),
-      recipes: state.recipes.filter((r) => r.productId !== id),
-    })),
-  toggleProductActive: (id, active) =>
-    set((state) => ({
-      products: state.products.map((prod) => (prod.id === id ? { ...prod, active } : prod)),
-    })),
-  addOrder: (lines, paymentMethod) => {
-    const total = lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0);
-    const order: Order = {
-      id: nanoid(),
-      orderNumber: `PP-${new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12)}`,
-      status: "pending",
+
+  toggleProductActive: async (id, active) => {
+    const updated = await api.updateProduct(id, { active });
+    set((state) => ({ products: state.products.map((prod) => (prod.id === id ? { ...prod, ...updated, active } : prod)) }));
+  },
+
+  addOrder: async (lines, paymentMethod) => {
+    const payload = {
       paymentMethod,
-      total,
-      createdAt: new Date().toISOString(),
-      items: lines,
+      items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
     };
-    set((state) => ({ orders: [order, ...state.orders] }));
-    return order;
+    const created = await api.createOrder(payload);
+    const orderWithNames = withNames([created], get().products)[0];
+    set((state) => ({ orders: [orderWithNames, ...state.orders] }));
+    return orderWithNames;
   },
-  updateOrderStatus: (id, status) =>
-    set((state) => ({
-      orders: state.orders.map((o) => (o.id === id ? { ...o, status } : o)),
-    })),
-  adjustItemStock: (itemId, delta) =>
-    set((state) => ({
-      items: state.items.map((it) => (it.id === itemId ? { ...it, stockQty: it.stockQty + delta } : it)),
-    })),
-  addExpense: (e) =>
-    set((state) => ({
-      expenses: [
-        { id: nanoid(), category: e.category, description: e.description, amount: e.amount, date: e.date ?? new Date().toISOString() },
-        ...state.expenses,
-      ],
-    })),
-  addWaste: (w) =>
-    set((state) => ({
-      waste: [
-        { id: nanoid(), itemId: w.itemId, qty: w.qty, reason: w.reason, date: w.date ?? new Date().toISOString() },
-        ...state.waste,
-      ],
-    })),
-  addAllocationRule: (rule) =>
-    set((state) => ({
-      allocationRules: [{ id: nanoid(), ...rule }, ...state.allocationRules],
-    })),
+
+  updateOrderStatus: async (id, status) => {
+    const updated = await api.updateOrderStatus(id, status);
+    set((state) => ({ orders: state.orders.map((o) => (o.id === id ? { ...o, ...updated, status } : o)) }));
+  },
+
+  adjustItemStock: async (itemId, delta) => {
+    const updated = await api.adjustItemStock(itemId, delta);
+    set((state) => ({ items: state.items.map((it) => (it.id === itemId ? { ...it, ...updated } : it)) }));
+  },
+
+  addExpense: async (e) => {
+    const created = await api.createExpense({ ...e, incurredOn: e.date });
+    const mapped: Expense = {
+      id: created.id,
+      category: created.category,
+      description: created.description,
+      amount: Number(created.amount ?? e.amount),
+      date: created.date || created.incurredOn || e.date || new Date().toISOString(),
+    };
+    set((state) => ({ expenses: [mapped, ...state.expenses] }));
+  },
+
+  addWaste: async (w) => {
+    const created = await api.createWaste({ ...w, recordedOn: w.date });
+    const mapped: Waste = {
+      id: created.id,
+      itemId: created.itemId,
+      qty: Number(created.qty ?? w.qty),
+      reason: created.reason,
+      date: created.date || created.recordedOn || w.date || new Date().toISOString(),
+    };
+    set((state) => ({ waste: [mapped, ...state.waste] }));
+  },
+
+  addAllocationRule: async (rule) => {
+    const created = await api.createAllocation(rule);
+    set((state) => ({ allocationRules: [created, ...state.allocationRules] }));
+  },
 }));

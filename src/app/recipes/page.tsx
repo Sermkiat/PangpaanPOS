@@ -20,7 +20,7 @@ export default function RecipesPage() {
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {recipes.map((recipe) => {
-          const baseCost = recipe.items.reduce((sum, it) => sum + it.qty * it.costPerUnit, 0);
+          const baseCost = recipe.items.reduce((sum, it) => sum + it.qty * (it.costPerUnit ?? 0), 0);
           const costPerYield = computeCostPerYield(baseCost, recipe.yieldQty);
           return (
             <Card key={recipe.id}>
@@ -42,7 +42,7 @@ export default function RecipesPage() {
                       <tr key={it.itemId}>
                         <TD>{it.itemName}</TD>
                         <TD>{it.qty}</TD>
-                        <TD>฿ {(it.qty * it.costPerUnit).toFixed(2)}</TD>
+                        <TD>฿ {(it.qty * (it.costPerUnit ?? 0)).toFixed(2)}</TD>
                       </tr>
                     ))}
                   </TBody>

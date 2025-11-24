@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, integer, text, boolean, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, integer, text, boolean, doublePrecision, date } from "drizzle-orm/pg-core";
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -103,4 +103,30 @@ export const allocationRules = pgTable("allocation_rules", {
   target: varchar("target", { length: 120 }).notNull(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+
+export const debts = pgTable("debts", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  amount: integer("amount").notNull(),
+  dueDay: integer("due_day").notNull(),
+  type: varchar("type").notNull(),
+  minimumPay: integer("minimum_pay"),
+  totalDebt: integer("total_debt"),
+  notes: text("notes"),
+});
+
+export const debtPayments = pgTable("debt_payments", {
+  id: serial("id").primaryKey(),
+  debtId: integer("debt_id").references(() => debts.id),
+  amount: integer("amount").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }).defaultNow(),
+});
+
+export const dailyReserve = pgTable("daily_reserve", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull(),
+  income: integer("income").notNull(),
+  reserve: integer("reserve").notNull(),
 });
