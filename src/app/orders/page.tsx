@@ -60,11 +60,12 @@ export default function OrdersPage() {
                       <span className="text-slate-700">Pay: {order.paymentMethod}</span>
                       <span className="font-semibold">฿ {order.total.toFixed(0)}</span>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
                       {columns.map((next) => (
                         <Button
                           key={next}
-                          size="sm"
+                          size="lg"
+                          className="w-full justify-center"
                           variant={next === order.status ? 'primary' : 'secondary'}
                           onClick={() => updateOrderStatus(order.id, next)}
                         >
