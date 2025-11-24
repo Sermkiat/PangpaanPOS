@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Star } from 'lucide-react';
 
 interface CartLine {
   productId: number;
@@ -17,12 +18,41 @@ export default function PosPage() {
   const { products, addOrder } = usePosStore();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [search, setSearch] = useState('');
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState<number>(0);
   const [payment, setPayment] = useState<'cash' | 'promptpay'>('cash');
   const [cashValue, setCashValue] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
   const [cartToast, setCartToast] = useState<number>(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('pp-pos-favorites');
+    if (saved) {
+      try {
+        setFavoriteIds(JSON.parse(saved));
+      } catch {
+        setFavoriteIds([]);
+      }
+    }
+  }, []);
+
+  const persistFavorites = (next: number[]) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('pp-pos-favorites', JSON.stringify(next));
+    }
+  };
+
+  const toggleFavorite = (id: number) => {
+    setFavoriteIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      persistFavorites(next);
+      return next;
+    });
+  };
+
+  const isFavorite = (id: number) => favoriteIds.includes(id);
 
   const categories = ['All', ...new Set(products.map((p) => p.category))];
   const searchTerm = search.trim().toLowerCase();
@@ -35,6 +65,10 @@ export default function PosPage() {
       const category = p.category.toLowerCase();
       return name.includes(searchTerm) || sku.includes(searchTerm) || category.includes(searchTerm);
     });
+
+  const orderedProducts = useMemo(() => {
+    return [...filtered].sort((a, b) => Number(isFavorite(b.id)) - Number(isFavorite(a.id)));
+  }, [filtered, favoriteIds]);
 
   const totals = useMemo(() => {
     const enriched = cart.map((c) => {
@@ -145,12 +179,29 @@ export default function PosPage() {
             />
           </CardHeader>
           <CardContent className="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((p) => (
+            {orderedProducts.map((p) => (
               <button
                 key={p.id}
                 onClick={() => addToCart(p.id)}
-                className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="relative group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
+                <div className="absolute right-2 top-2 z-10">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(p.id);
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggleFavorite(p.id); } }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow hover:bg-white"
+                  >
+                    <Star
+                      size={18}
+                      className={isFavorite(p.id) ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}
+                    />
+                  </span>
+                </div>
                 <div className="relative h-36 w-full overflow-hidden bg-slate-50">
                   <Image
                     src={p.imageUrl || 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&w=800&q=60'}
