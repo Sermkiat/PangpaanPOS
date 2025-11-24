@@ -16,6 +16,7 @@ interface CartLine {
 export default function PosPage() {
   const { products, addOrder } = usePosStore();
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState<number>(0);
   const [payment, setPayment] = useState<'cash' | 'promptpay'>('cash');
@@ -24,7 +25,16 @@ export default function PosPage() {
   const [cartToast, setCartToast] = useState<number>(0);
 
   const categories = ['All', ...new Set(products.map((p) => p.category))];
-  const filtered = products.filter((p) => activeCategory === 'All' || p.category === activeCategory);
+  const searchTerm = search.trim().toLowerCase();
+  const filtered = products
+    .filter((p) => activeCategory === 'All' || p.category === activeCategory)
+    .filter((p) => {
+      if (!searchTerm) return true;
+      const name = p.name.toLowerCase();
+      const sku = p.sku.toLowerCase();
+      const category = p.category.toLowerCase();
+      return name.includes(searchTerm) || sku.includes(searchTerm) || category.includes(searchTerm);
+    });
 
   const totals = useMemo(() => {
     const enriched = cart.map((c) => {
@@ -125,8 +135,14 @@ export default function PosPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex items-center justify-between">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>POS Screen</CardTitle>
+            <Input
+              placeholder="ค้นหาสินค้า..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full sm:w-72"
+            />
           </CardHeader>
           <CardContent className="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             {filtered.map((p) => (
