@@ -26,6 +26,7 @@ export default function PosPage() {
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
   const [cartToast, setCartToast] = useState<number>(0);
   const [isPaying, setIsPaying] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
