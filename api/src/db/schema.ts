@@ -84,6 +84,7 @@ export const expenseLog = pgTable("expense_log", {
   category: varchar("category", { length: 120 }).notNull(),
   description: varchar("description", { length: 255 }).notNull(),
   amount: doublePrecision("amount").notNull(),
+  paymentMethod: varchar("payment_method", { length: 32 }),
   incurredOn: timestamp("incurred_on", { withTimezone: true }).notNull().defaultNow(),
 });
 

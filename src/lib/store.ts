@@ -58,7 +58,7 @@ export type Order = {
   items: OrderLine[];
 };
 
-export type Expense = { id: number; category: string; description: string; amount: number; date: string };
+export type Expense = { id: number; category: string; description: string; amount: number; date: string; paymentMethod?: string };
 export type Waste = { id: number; itemId: number; qty: number; reason: string; date: string };
 export type AllocationRule = {
   id: number;
@@ -108,6 +108,7 @@ type StoreState = {
   addItem: (payload: Omit<Item, "id">) => Promise<void>;
   updateItem: (id: number, payload: Partial<Omit<Item, "id">>) => Promise<void>;
   fetchInventoryMovements: () => Promise<void>;
+  fetchExpenses: (month?: string) => Promise<void>;
   addExpense: (e: Omit<Expense, "id" | "date"> & { date?: string }) => Promise<void>;
   addWaste: (w: Omit<Waste, "id" | "date"> & { date?: string }) => Promise<void>;
   addAllocationRule: (rule: Omit<AllocationRule, "id">) => Promise<void>;
@@ -150,6 +151,7 @@ export const usePosStore = create<StoreState>()((set, get) => ({
           description: e.description,
           amount: Number(e.amount ?? 0),
           date: e.date || e.incurredOn || new Date().toISOString(),
+          paymentMethod: e.paymentMethod,
         })),
         waste: waste.map((w: any) => ({
           id: w.id,
@@ -232,6 +234,18 @@ export const usePosStore = create<StoreState>()((set, get) => ({
     set({ inventoryMovements: rows });
   },
 
+  fetchExpenses: async (month) => {
+    const rows = await api.getExpenses(month);
+    set({ expenses: rows.map((e: any) => ({
+      id: e.id,
+      category: e.category,
+      description: e.description,
+      amount: Number(e.amount ?? 0),
+      date: e.date || e.incurredOn || new Date().toISOString(),
+      paymentMethod: e.paymentMethod,
+    })) });
+  },
+
   addExpense: async (e) => {
     const created = await api.createExpense({ ...e, incurredOn: e.date });
     const mapped: Expense = {
@@ -240,6 +254,7 @@ export const usePosStore = create<StoreState>()((set, get) => ({
       description: created.description,
       amount: Number(created.amount ?? e.amount),
       date: created.date || created.incurredOn || e.date || new Date().toISOString(),
+      paymentMethod: created.paymentMethod || e.paymentMethod,
     };
     set((state) => ({ expenses: [mapped, ...state.expenses] }));
   },

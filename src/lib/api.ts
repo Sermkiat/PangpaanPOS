@@ -52,7 +52,10 @@ export const api = {
     fetchJson<any>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   // Finance
-  getExpenses: () => fetchJson<any[]>("/expenses"),
+  getExpenses: (month?: string) => fetchJson<any[]>(month ? `/expenses?month=${month}` : "/expenses"),
+  getExpenseSummary: (month?: string) => fetchJson<{ total: number }>(month ? `/expenses/summary?month=${month}` : "/expenses/summary"),
+  importExpenses: (csv: string, defaultPaymentMethod?: string) =>
+    fetchJson<any>("/expenses/import", { method: "POST", body: JSON.stringify({ csv, defaultPaymentMethod }) }),
   createExpense: (body: any) => fetchJson<any>("/expenses", { method: "POST", body: JSON.stringify(body) }),
 
   getWaste: () => fetchJson<any[]>("/waste"),
