@@ -38,9 +38,20 @@ open http://localhost:8090
 ## Migrations (Drizzle)
 ```bash
 cd api
+# push schema to DB
+npx drizzle-kit push    # or npm run db:push
+# optional: generate SQL snapshot
 npx drizzle-kit generate:pg
-npx drizzle-kit migrate
 ```
+
+## Import products (CSV)
+- เตรียมไฟล์ CSV หัวข้ออย่างน้อย `sku,name,category,price` (เช่น `PangpaanSystemCodex - Product Cost.csv`)
+- รันคำสั่งจาก root
+```bash
+npm run import:products -- --file "PangpaanSystemCodex - Product Cost.csv" --api http://localhost:8000
+```
+  - ปรับ `--api` ให้ตรงฐาน API (เช่น http://pi5-lan:8000 หรือ Cloudflare URL)
+  - สคริปต์อยู่ที่ `scripts/import-products.js`
 
 ## Debt Manager (ใหม่)
 - DB tables: `debts`, `debt_payments`, `daily_reserve`

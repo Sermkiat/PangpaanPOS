@@ -1,6 +1,6 @@
 {
   "name": "pangpaan-pos-api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,8 @@
     "start": "node --enable-source-maps dist/index.js",
     "build": "tsc -b",
     "lint": "eslint . --ext .ts",
+    "check": "npm run lint && npm run build",
+    "db:push": "drizzle-kit push",
     "migrate": "drizzle-kit migrate",
     "generate": "drizzle-kit generate:pg"
   },

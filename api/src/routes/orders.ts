@@ -12,6 +12,8 @@ const orderInput = z.object({
   paymentStatus: z.enum(["paid", "unpaid"]).default("paid"),
   fulfillmentStatus: z.enum(["waiting", "finished"]).default("waiting"),
   notes: z.string().optional(),
+  cashReceived: z.number().nonnegative().nullable().optional(),
+  change: z.number().nonnegative().nullable().optional(),
   items: z
     .array(
       z.object({
@@ -59,6 +61,15 @@ router.post(
     });
     const orderTotal = totals.reduce((acc, t) => acc + t.lineTotal, 0);
 
+    const cashReceived = input.cashReceived ?? (input.paymentStatus === "paid" ? orderTotal : null);
+    const change =
+      input.change ??
+      (input.paymentStatus === "paid" && input.paymentMethod === "cash" && cashReceived != null
+        ? Math.max(0, cashReceived - orderTotal)
+        : input.paymentStatus === "paid"
+          ? 0
+          : null);
+
     const [created] = await db
       .insert(orders)
       .values({
@@ -69,6 +80,8 @@ router.post(
         total: orderTotal,
         paymentMethod: input.paymentMethod,
         paidAt: input.paymentStatus === "paid" ? new Date() : null,
+        cashReceived,
+        change,
         notes: input.notes,
       })
       .returning();
@@ -91,17 +104,41 @@ router.patch(
   "/orders/:id/status",
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
-    const { fulfillmentStatus } = z.object({ fulfillmentStatus: z.enum(["waiting", "finished"]) }).parse(req.body);
-    const [updated] = await db
-      .update(orders)
-      .set({
-        fulfillmentStatus,
-        status: fulfillmentStatus,
-        servedAt: fulfillmentStatus === "finished" ? new Date() : null,
-        updatedAt: new Date(),
+    const parsed = z
+      .object({
+        fulfillmentStatus: z.enum(["waiting", "finished"]),
+        paymentStatus: z.enum(["paid", "unpaid"]).optional(),
+        paymentMethod: z.string().optional(),
+        paidAt: z.string().datetime().optional(),
+        servedAt: z.string().datetime().optional(),
+        cashReceived: z.number().nullable().optional(),
+        change: z.number().nullable().optional(),
       })
-      .where(eq(orders.id, id))
-      .returning();
+      .parse(req.body);
+
+    const updatePayload: any = {
+      fulfillmentStatus: parsed.fulfillmentStatus,
+      status: parsed.fulfillmentStatus,
+      updatedAt: new Date(),
+    };
+    if (parsed.paymentStatus) updatePayload.paymentStatus = parsed.paymentStatus;
+    if (parsed.paymentMethod) updatePayload.paymentMethod = parsed.paymentMethod;
+
+    if (parsed.paidAt !== undefined) {
+      updatePayload.paidAt = parsed.paidAt ? new Date(parsed.paidAt) : null;
+    } else if (parsed.paymentStatus === "paid") {
+      updatePayload.paidAt = new Date();
+    }
+
+    if (parsed.servedAt !== undefined) {
+      updatePayload.servedAt = parsed.servedAt ? new Date(parsed.servedAt) : null;
+    } else if (parsed.fulfillmentStatus === "finished") {
+      updatePayload.servedAt = new Date();
+    }
+
+    if (parsed.cashReceived !== undefined) updatePayload.cashReceived = parsed.cashReceived;
+    if (parsed.change !== undefined) updatePayload.change = parsed.change;
+    const [updated] = await db.update(orders).set(updatePayload).where(eq(orders.id, id)).returning();
     if (!updated) return res.status(404).json({ success: false, error: "Order not found" });
     return ok(res, updated);
   }),

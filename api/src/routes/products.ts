@@ -209,14 +209,19 @@ router.post(
       .filter(Boolean);
     if (lines.length < 2) return res.status(400).json({ success: false, error: "No rows" });
 
-    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const idx = (key: string) => header.indexOf(key);
+    const header = lines[0].split(",").map((h) => h.trim());
+    const normalized = header.map((h) => h.toLowerCase().replace(/\s+/g, ""));
+    const idx = (key: string) => normalized.indexOf(key.toLowerCase().replace(/\s+/g, ""));
+    const firstIdx = (...keys: string[]) => keys.map(idx).find((i) => i >= 0) ?? -1;
+
+    const skuIdx = firstIdx("sku", "productcode");
     const idIdx = idx("id");
-    const nameIdx = idx("name");
-    const categoryIdx = idx("category");
+    const nameIdx = firstIdx("name", "productnameeng", "productnamethai");
+    const categoryIdx = firstIdx("category", "group");
     const priceIdx = idx("price");
-    const unitIdx = idx("unit");
-    const stockIdx = idx("stockqty");
+    const costIdx = firstIdx("cost", "costperunit", "cost/unit", "costperpiece");
+    const unitIdx = firstIdx("unit", "1unitproduct", "unitproduct");
+    const stockIdx = firstIdx("stockqty", "stock", "qty");
     const imageIdx = idx("imageurl");
     const activeIdx = idx("active");
 
@@ -237,7 +242,11 @@ router.post(
       const name = (cols[nameIdx] ?? "").trim();
       if (!name) continue;
       const category = (cols[categoryIdx] ?? "General").trim() || "General";
-      const price = Number((cols[priceIdx] ?? "0").trim()) || 0;
+      const priceRaw = priceIdx >= 0 ? (cols[priceIdx] ?? "0").trim() : "";
+      const costRaw = costIdx >= 0 ? (cols[costIdx] ?? "0").trim() : "";
+      const priceFromCsv = priceRaw ? Number(priceRaw) || 0 : 0;
+      const cost = costRaw ? Number(costRaw) || 0 : 0;
+      const price = priceFromCsv || cost; // fallback ใช้ cost เป็นราคาถ้าไม่มี price
       const unit = (cols[unitIdx] ?? "unit").trim() || "unit";
       const stockQty = Number((cols[stockIdx] ?? "0").trim()) || 0;
       const rawImage = (cols[imageIdx] ?? "").trim() || undefined;
@@ -245,21 +254,32 @@ router.post(
       const activeRaw = (cols[activeIdx] ?? "").trim().toLowerCase();
       const active = activeRaw ? activeRaw === "true" || activeRaw === "1" : true;
       const idVal = idIdx >= 0 ? Number((cols[idIdx] ?? "").trim()) : undefined;
+      const sku = skuIdx >= 0 ? (cols[skuIdx] ?? "").trim() : "";
 
-      let product = idVal ? existingProducts.find((p) => p.id === idVal) : productMap.get(productKey({ name, category }));
+      let product = idVal
+        ? existingProducts.find((p) => p.id === idVal)
+        : sku
+          ? existingProducts.find((p) => p.sku === sku)
+          : productMap.get(productKey({ name, category }));
       if (product) {
         const [updated] = await db
           .update(products)
-          .set({ name, category, price, imageUrl, active, updatedAt: new Date() })
+          .set({ name, category, price, imageUrl, active, updatedAt: new Date(), sku: product.sku || sku || product.sku })
           .where(eq(products.id, product.id))
           .returning();
         product = updated;
         updatedProducts += 1;
       } else {
-        const sku = `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`;
         const [created] = await db
           .insert(products)
-          .values({ name, category, price, imageUrl, active, sku })
+          .values({
+            name,
+            category,
+            price,
+            imageUrl,
+            active,
+            sku: sku || `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`,
+          })
           .returning();
         product = created;
         productMap.set(productKey(product), product);
@@ -271,7 +291,14 @@ router.post(
       if (existingItem) {
         const [updatedItem] = await db
           .update(items)
-          .set({ code: existingItem.code, name, unit, stockQty, updatedAt: new Date() })
+          .set({
+            code: existingItem.code,
+            name,
+            unit,
+            stockQty,
+            costPerUnit: cost || existingItem.costPerUnit,
+            updatedAt: new Date(),
+          })
           .where(eq(items.id, existingItem.id))
           .returning();
         itemMap.set(name.toLowerCase(), updatedItem);
@@ -280,7 +307,7 @@ router.post(
         const code = `${slugify(name)}-${Math.random().toString(36).slice(2, 5)}`;
         const [createdItem] = await db
           .insert(items)
-          .values({ code, name, unit, stockQty, costPerUnit: 0, reorderPoint: 0 })
+          .values({ code, name, unit, stockQty, costPerUnit: cost, reorderPoint: 0 })
           .returning();
         itemMap.set(name.toLowerCase(), createdItem);
         insertedItems += 1;

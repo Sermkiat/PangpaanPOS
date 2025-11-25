@@ -1,27 +1,30 @@
 "use client";
 
-import Image from "next/image";
-import cartIcon from "../../assets/ui/cart/pos_cart_green_circle.png";
+import { ShoppingCart } from "lucide-react";
 
 export type CartFloatingButtonProps = {
   itemCount?: number;
   navigateToPOS: () => void;
+  scrollToPay?: () => void;
 };
 
-export function CartFloatingButton({ itemCount = 0, navigateToPOS }: CartFloatingButtonProps) {
+export function CartFloatingButton({ itemCount = 0, navigateToPOS, scrollToPay }: CartFloatingButtonProps) {
   const showBadge = itemCount > 0;
 
   return (
     <button
       type="button"
-      onClick={navigateToPOS}
-      className="fixed bottom-6 right-6 z-50 inline-flex h-16 w-16 items-center justify-center rounded-full bg-transparent shadow-lg shadow-emerald-500/25 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2"
+      onClick={() => {
+        navigateToPOS();
+        scrollToPay?.();
+      }}
+      className="fixed bottom-24 right-6 z-50 inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 text-white shadow-lg shadow-amber-300/60 ring-2 ring-white/70 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2"
       aria-label="ไปที่หน้าขาย"
     >
-      <div className="relative h-16 w-16">
-        <Image src={cartIcon} alt="Cart" fill className="object-contain" priority />
+      <div className="relative h-10 w-10">
+        <ShoppingCart className="h-10 w-10 text-white" strokeWidth={2.25} />
         {showBadge && (
-          <span className="absolute -top-1 -right-1 min-w-[26px] rounded-full bg-[#FF3B30] px-1.5 text-center text-xs font-bold text-white shadow-md">
+          <span className="absolute -top-2 -right-3 min-w-[26px] rounded-full bg-[#FF3B30] px-1.5 text-center text-xs font-bold text-white shadow-md">
             {itemCount > 99 ? "99+" : itemCount}
           </span>
         )}

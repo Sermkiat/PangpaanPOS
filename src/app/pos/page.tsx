@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Star } from 'lucide-react';
+import { Star, Banknote, QrCode, FilePlus } from 'lucide-react';
 
 interface CartLine {
   productId: number;
@@ -15,18 +15,21 @@ interface CartLine {
 }
 
 export default function PosPage() {
-  const { products, addOrder } = usePosStore();
+  const { products, addOrder, setCartCount, note, setNote } = usePosStore();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState<number>(0);
-  const [payment, setPayment] = useState<'cash' | 'promptpay' | 'card'>('cash');
+  const [payment, setPayment] = useState<'cash' | 'promptpay' | 'open'>('cash');
+  // ใช้ค่านี้เป็นตัวเลือก flow: 'paid' = จ่ายและรับทันที, 'unpaid' = จ่ายแล้วแต่ยังไม่รับ (เก็บไว้รอส่งมอบ)
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
   const [cashValue, setCashValue] = useState<string>('');
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
+  const [showOpenBillConfirm, setShowOpenBillConfirm] = useState<boolean>(false);
   const [cartToast, setCartToast] = useState<number>(0);
   const [isPaying, setIsPaying] = useState(false);
+  const payButtonRef = useRef<HTMLButtonElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
@@ -133,10 +136,20 @@ export default function PosPage() {
     setCart([]);
     setCashValue('');
     setDiscount(0);
+    setCartCount(0);
+    setPayment('cash');
+    setPaymentStatus('paid');
+    setNote('');
   };
 
-  const cashNumber = paymentStatus === 'paid' && payment === 'cash' ? Number(cashValue) || 0 : 0;
+  const cashNumber = payment === 'cash' ? Number(cashValue) || 0 : 0;
   const change = Math.max(0, cashNumber - totals.total);
+  const requiresCashCover = payment === 'cash';
+  const payDisabled =
+    totals.total === 0 ||
+    isPaying ||
+    payment === 'open' ||
+    (requiresCashCover && cashNumber + 0.0001 < totals.total);
 
   const bumpCash = (amount: number) => {
     setCashValue((prev) => {
@@ -150,8 +163,32 @@ export default function PosPage() {
   };
 
   const handlePay = () => {
-    if (totals.enriched.length === 0) return;
+    if (totals.enriched.length === 0 || payment === 'open') return;
     setShowConfirm(true);
+  };
+
+  const openBill = () => {
+    if (totals.enriched.length === 0 || isPaying) return;
+    setShowOpenBillConfirm(true);
+  };
+
+  const confirmOpenBill = async () => {
+    if (isPaying || totals.enriched.length === 0) return;
+    setIsPaying(true);
+    try {
+      const lines = totals.enriched.map((line) => ({
+        productId: line.productId,
+        name: line.name,
+        qty: line.qty,
+        unitPrice: line.unitPrice,
+      }));
+      await addOrder(lines, 'cash', 'unpaid', 'waiting', null, null);
+      setShowOpenBillConfirm(false);
+      clearCart();
+      setCartCount(0);
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const confirmPay = async () => {
@@ -164,9 +201,26 @@ export default function PosPage() {
         qty: line.qty,
         unitPrice: line.unitPrice,
       }));
-      await addOrder(lines, payment, paymentStatus, 'waiting');
+      const fulfillmentStatus = paymentStatus === 'paid' ? 'finished' : 'waiting';
+      const paymentStatusToSave: 'paid' | 'unpaid' =
+        payment === 'promptpay'
+          ? 'paid'
+          : payment === 'open'
+            ? 'unpaid'
+            : 'paid';
+      const cashReceived = payment === 'cash' ? cashNumber : totals.total;
+      const changeAmount = payment === 'cash' ? change : 0;
+      await addOrder(
+        lines,
+        payment === 'open' ? 'cash' : payment,
+        paymentStatusToSave,
+        fulfillmentStatus,
+        paymentStatusToSave === 'paid' ? cashReceived : null,
+        paymentStatusToSave === 'paid' ? changeAmount : null,
+      );
       setShowConfirm(false);
       clearCart();
+      setCartCount(0);
     } finally {
       setIsPaying(false);
     }
@@ -180,37 +234,56 @@ export default function PosPage() {
   }, [cartToast]);
 
   useEffect(() => () => { audioCtxRef.current?.close(); }, []);
+  useEffect(() => {
+    const totalQty = cart.reduce((sum, c) => sum + c.qty, 0);
+    setCartCount(totalQty);
+  }, [cart, setCartCount]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (payButtonRef.current) {
+        payButtonRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll-to-pay', handler);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('scroll-to-pay', handler);
+      }
+    };
+  }, []);
 
   return (
     <div className="grid gap-4 lg:grid-cols-5">
       <div className="lg:col-span-3 space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Categories</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <Button
-                key={cat}
-                variant={cat === activeCategory ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setActiveCategory(cat)}
-              >
-                {cat}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>POS Screen</CardTitle>
-            <Input
-              placeholder="ค้นหาสินค้า..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full sm:w-72"
-            />
+          <CardHeader className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto rounded-full bg-slate-100 px-2 py-1 text-sm">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`whitespace-nowrap rounded-full px-3 py-1 font-semibold ${
+                      cat === activeCategory ? 'bg-emerald-500 text-white' : 'bg-white text-slate-800'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div className="w-full">
+                <Input
+                  placeholder="ค้นหาสินค้า..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             {orderedProducts.map((p) => (
@@ -219,6 +292,9 @@ export default function PosPage() {
                 onClick={() => addToCart(p.id)}
                 className="relative group flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
+                <div className="absolute left-2 top-2 z-10">
+                  {p.active ? <Badge tone="green">On shelf</Badge> : <Badge tone="gray">Hidden</Badge>}
+                </div>
                 <div className="absolute right-2 top-2 z-10">
                   <span
                     role="button"
@@ -236,7 +312,7 @@ export default function PosPage() {
                     />
                   </span>
                 </div>
-                <div className="relative h-36 w-full overflow-hidden bg-slate-50">
+                <div className="relative h-32 w-full overflow-hidden bg-slate-50">
                   <Image
                     src={p.imageUrl || 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&w=800&q=60'}
                     alt={p.name}
@@ -244,13 +320,12 @@ export default function PosPage() {
                     className="object-cover transition group-hover:scale-105"
                   />
                 </div>
-                <div className="flex-1 space-y-1 p-3 flex flex-col">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>{p.category}</span>
-                    {p.active ? <Badge tone="green">On shelf</Badge> : <Badge tone="gray">Hidden</Badge>}
+                <div className="flex flex-col gap-2 p-3">
+                  <div className="font-semibold text-slate-900 leading-tight line-clamp-2">{p.name}</div>
+                  <div className="flex items-center justify-between text-sm text-slate-700">
+                    <span className="truncate">{p.category}</span>
+                    <span className="font-bold text-slate-900">฿ {p.price.toFixed(0)}</span>
                   </div>
-                  <div className="font-semibold text-slate-900 leading-tight">{p.name}</div>
-                  <div className="mt-auto text-lg font-extrabold text-slate-900">฿ {p.price.toFixed(0)}</div>
                 </div>
               </button>
             ))}
@@ -324,22 +399,19 @@ export default function PosPage() {
               <span className="font-semibold">฿ {totals.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-600">Discount</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-slate-600">
+                <span>Discount</span>
                 <Input
                   type="number"
                   min={0}
                   max={100}
-                  className="w-20 text-center"
+                  className="w-16 text-center"
                   value={discount}
                   onChange={(e) => setDiscount(Number(e.target.value) || 0)}
                 />
-                <span className="text-slate-600">%</span>
+                <span>%</span>
               </div>
-            </div>
-            <div className="flex items-center justify-between text-sm text-slate-700">
-              <span>Discount</span>
-              <span>-{totals.discountAmt.toFixed(2)}</span>
+              <span className="text-slate-700">- {totals.discountAmt.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-xl font-extrabold">
               <span>Total</span>
@@ -348,67 +420,46 @@ export default function PosPage() {
 
             <div className="space-y-2">
               <div className="text-sm font-semibold text-slate-800">Payment Method</div>
-              <div className="flex gap-4 text-sm text-slate-700">
-                {(['cash', 'promptpay', 'card'] as const).map((method) => (
-                  <label key={method} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value={method}
-                      checked={payment === method}
-                      onChange={() => setPayment(method)}
-                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="capitalize">{method}</span>
-                  </label>
-                ))}
-              </div>
-              {payment === 'promptpay' && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
-                  <div className="text-sm font-semibold text-slate-800 mb-2">PromptPay QR</div>
-                  <img
-                    src="https://promptpay.io/0868938788.png"
-                    alt="PromptPay QR"
-                    className="mx-auto h-32 w-32 object-contain"
-                  />
-                  <div className="mt-2 text-sm font-bold text-slate-900">฿ {totals.total.toFixed(2)}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-slate-800">สถานะการชำระ</div>
-              <div className="flex gap-4 text-sm text-slate-700">
+              <div className="flex gap-2">
                 {([
-                  { value: 'paid', label: 'จ่ายแล้ว (รอรับเค้ก)' },
-                  { value: 'unpaid', label: 'ยังไม่จ่าย (รอรับเค้ก)' },
-                ] as const).map((opt) => (
-                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentStatus"
-                      value={opt.value}
-                      checked={paymentStatus === opt.value}
-                      onChange={() => setPaymentStatus(opt.value)}
-                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
+                  { value: 'cash', label: 'Cash', icon: Banknote, onClick: () => setPayment('cash') },
+                  { value: 'promptpay', label: 'PromptPay', icon: QrCode, onClick: () => setPayment('promptpay') },
+                  { value: 'open', label: 'Open Bill', icon: FilePlus, onClick: openBill },
+                ] as const).map((m) => {
+                  const Icon = m.icon;
+                  const active = payment === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={m.onClick}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                        active ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-800'
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {m.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
+            {payment === 'cash' && (
             <div className="space-y-2">
-              <div className="text-sm font-semibold text-slate-800">เงินรับมา</div>
-              <Input
-                type="number"
-                inputMode="decimal"
-                className="h-12 text-right text-lg"
-                value={cashValue}
-                onChange={(e) => setCashValue(e.target.value)}
-                placeholder="0.00"
-                disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
-              />
+              <div className="flex items-center justify-between text-sm font-semibold text-slate-800">
+                <span>เงินรับมา</span>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  className="h-12 w-48 text-right text-lg"
+                  value={cashValue}
+                  onChange={(e) => setCashValue(e.target.value)}
+                  placeholder="0.00"
+                  disabled={payment !== 'cash'}
+                />
+              </div>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 5, 10, 20, 50, 100, 500, 1000].map((amt) => (
                   <button
@@ -416,7 +467,7 @@ export default function PosPage() {
                     type="button"
                     onClick={() => bumpCash(amt)}
                     className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-200"
-                    disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
+                    disabled={payment !== 'cash'}
                   >
                     +{amt}
                   </button>
@@ -425,7 +476,7 @@ export default function PosPage() {
                   type="button"
                   onClick={() => setCashExact(totals.total)}
                   className="col-span-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
+                  disabled={payment !== 'cash'}
                 >
                   Exact
                 </button>
@@ -433,34 +484,72 @@ export default function PosPage() {
                   type="button"
                   onClick={() => setCashValue('')}
                   className="col-span-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  disabled={payment !== 'cash' || paymentStatus === 'unpaid'}
+                  disabled={payment !== 'cash'}
                 >
                   Clear Cash
                 </button>
               </div>
-            </div>
 
               <div className="flex items-center justify-between text-base font-semibold text-slate-900">
                 <span>เงินทอน</span>
                 <span>฿ {change.toFixed(2)}</span>
               </div>
+            </div>
+            )}
 
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={clearCart}
-                className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-base font-semibold text-slate-800 hover:bg-slate-50"
-              >
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-slate-800">สถานะการชำระ/รับสินค้า</div>
+              <div className="flex gap-2 text-sm text-slate-700">
+                {([
+                  { value: 'paid', label: 'จ่ายและรับ' },
+                  { value: 'unpaid', label: 'ยังไม่รับ' },
+                ] as const).map((opt) => {
+                  const active = paymentStatus === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPaymentStatus(opt.value)}
+                      className={`flex-1 rounded-xl border px-3 py-2 font-semibold ${
+                        active ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-800'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-slate-800">ข้อความบนหน้าเค้ก / โน้ต</div>
+              <textarea
+                className="w-full rounded-lg border border-slate-200 p-3 text-sm text-slate-800 focus:border-emerald-400 focus:outline-none"
+                rows={2}
+                placeholder="เช่น สุขสันต์วันเกิด, ชื่อคนรับ, คำอวยพร"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-base font-semibold text-slate-800 hover:bg-slate-50"
+                >
                 Clear
-              </button>
-              <button
-                type="button"
-                disabled={totals.total === 0 || isPaying}
-                onClick={handlePay}
-                className="flex-1 rounded-xl bg-emerald-500 py-3 text-base font-bold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isPaying ? 'Processing…' : `Pay ฿ ${totals.total.toFixed(2)}`}
-              </button>
+                </button>
+                <button
+                  ref={payButtonRef}
+                  data-pay-button
+                  type="button"
+                  disabled={payDisabled}
+                  onClick={handlePay}
+              className="flex-1 rounded-xl bg-emerald-500 py-3 text-base font-bold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isPaying ? 'Processing…' : `Pay ฿ ${totals.total.toFixed(2)}`}
+            </button>
             </div>
 
             {cartToast > 0 && (
@@ -471,6 +560,59 @@ export default function PosPage() {
           </CardContent>
         </Card>
       </div>
+
+      {showOpenBillConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">เปิดบิลค้างจ่าย</h3>
+              <button onClick={() => setShowOpenBillConfirm(false)} className="text-slate-500 hover:text-slate-800 text-sm">
+                Close
+              </button>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-auto">
+              {totals.enriched.map((line) => (
+                <div key={line.productId} className="flex justify-between text-sm text-slate-800">
+                  <span>
+                    {line.qty} × {line.name}
+                  </span>
+                  <span>฿ {line.lineTotal.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-sm text-slate-800">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>฿ {totals.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Discount</span>
+                <span>-฿ {totals.discountAmt.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-slate-900">
+                <span>Total</span>
+                <span>฿ {totals.total.toFixed(2)}</span>
+              </div>
+            </div>
+            {note && (
+              <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                โน้ต: {note}
+              </div>
+            )}
+            <div className="mt-3 text-xs text-amber-700">
+              จะบันทึกเป็นบิลค้างชำระ/ค้างส่ง (unpaid + waiting) เพื่อมาชำระและรับสินค้าทีหลัง
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowOpenBillConfirm(false)}>
+                ยกเลิก
+              </Button>
+              <Button className="flex-1" disabled={isPaying} onClick={confirmOpenBill}>
+                {isPaying ? 'Processing…' : 'ยืนยันเปิดบิล'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -492,13 +634,74 @@ export default function PosPage() {
               <div className="flex justify-between"><span>Discount</span><span>-฿ {totals.discountAmt.toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-slate-900"><span>Total</span><span>฿ {totals.total.toFixed(2)}</span></div>
             </div>
-            <div className="mt-3 text-sm text-slate-800">
-              <div className="flex justify-between"><span>ชำระแบบ</span><span className="capitalize">{payment}</span></div>
-              <div className="flex justify-between"><span>สถานะจ่าย</span><span className={paymentStatus === 'paid' ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-semibold'}>{paymentStatus}</span></div>
+            <div className="space-y-3 text-sm text-slate-800">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">ชำระแบบ</span>
+                  <span className="capitalize font-semibold">{payment}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">สถานะจ่าย</span>
+                  <span className="text-emerald-700 font-semibold">จ่ายแล้ว</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">สถานะรับสินค้า</span>
+                  <span className={paymentStatus === 'paid' ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-semibold'}>
+                    {paymentStatus === 'paid' ? 'รับแล้ว' : 'ยังไม่รับ'}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">เงินรับมา</span>
+                  <span className="font-semibold">฿ {payment === 'cash' ? cashNumber.toFixed(2) : '0.00'}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">เงินทอน</span>
+                  <span className="font-semibold">฿ {payment === 'cash' ? change.toFixed(2) : '0.00'}</span>
+                </div>
+              </div>
+              {note && (
+                <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                  โน้ต: {note}
+                </div>
+              )}
+              {payment === 'promptpay' && (
+                <div className="space-y-2 text-center">
+                  <div className="flex gap-2 justify-center text-sm">
+                    {([
+                      { value: 'paid', label: 'จ่ายและรับ' },
+                      { value: 'unpaid', label: 'ยังไม่รับ' },
+                    ] as const).map((opt) => {
+                      const active = paymentStatus === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setPaymentStatus(opt.value)}
+                          className={`rounded-full px-3 py-1 font-semibold ${
+                            active ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-800'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <img
+                    src="https://promptpay.io/0868938788.png"
+                    alt="PromptPay QR"
+                    className="mx-auto h-68 w-68 object-contain"
+                  />
+                  <div className="text-sm font-semibold text-slate-900">฿ {totals.total.toFixed(2)}</div>
+                </div>
+              )}
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>ยกเลิก</Button>
-              <Button className="flex-1" disabled={isPaying} onClick={confirmPay}>{isPaying ? 'Processing…' : 'ยืนยันชำระ'}</Button>
+              <Button className="flex-1" disabled={isPaying} onClick={confirmPay}>
+                {isPaying ? 'Processing…' : payment === 'promptpay' ? 'PromptPay สำเร็จ' : 'ยืนยันชำระ'}
+              </Button>
             </div>
           </div>
         </div>

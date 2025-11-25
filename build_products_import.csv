@@ -1,0 +1,55 @@
+sku,name,category,price
+SKU-CK001,Butter Cake STR Jam ปอนด์,Cake,34.49
+SKU-CK002,Butter Cake BLU Jam ปอนด์,Cake,43.07
+SKU-CK003,Butter Cake MIX Jam ปอนด์,Cake,45.28
+SKU-CK004,Butter STR Fruit Half ปอนด์,Cake,45.54
+SKU-CK005,Butter BLU Fruit Half ปอนด์,Cake,48.53
+SKU-CK006,Butter STR Fruit Full ปอนด์,Cake,29.82
+SKU-CK007,Butter BLU Fruit Full ปอนด์,Cake,32.81
+SKU-CK008,Butter STR Jam ชิ้น,Cake,4.31
+SKU-CK009,Butter BLU Jam ชิ้น,Cake,5.38
+SKU-CK010,Butter Minimal STR ปอนด์,Cake,34.49
+SKU-CK011,Butter Minimal BLU ปอนด์,Cake,43.07
+SKU-CK012,Butter Mix 8pcs,Cake,5.59
+SKU-CK013,Butter Mix 10pcs,Cake,5.54
+SKU-CK014,Fudge Choc ชิ้น,Cake,7.65
+SKU-CK015,Fudge Choc Almond ปอนด์,Cake,73.3
+SKU-CK016,Fudge Choc Fruit Half ปอนด์,Cake,75.46
+SKU-CK017,Fudge Choc Fruit Full ปอนด์,Cake,59.75
+SKU-CK018,Fudge Choc STR Jam ปอนด์,Cake,64.41
+SKU-CK019,Chiffon Orange ชิ้น,Cake,5.71
+SKU-CK020,Chiffon Orange Fruit Half ปอนด์,Cake,59.93
+SKU-CK021,Chiffon Orange Fruit Full ปอนด์,Cake,44.22
+SKU-CK022,Chiffon Coconut ชิ้น,Cake,3.86
+SKU-CK023,Chiffon Coconut Fruit Half ปอนด์,Cake,45.08
+SKU-CK024,Chiffon Coconut Fruit Full ปอนด์,Cake,29.37
+SKU-CK025,Custom Cake,Cake,43.2
+SKU-CD001,Candle Spiral,Candle,4.5
+SKU-CD002,Candle Spiral Mix M,Candle,4.5
+SKU-CD003,Candle Spiral Gold M,Candle,4.5
+SKU-CD004,Candle Spiral YG M,Candle,4.5
+SKU-CD005,Candle Number 0,Candle,8.0
+SKU-CD006,Candle Number 1,Candle,7.38
+SKU-CD007,Candle Number 2,Candle,6.56
+SKU-CD008,Candle Number 3,Candle,6.0
+SKU-CD009,Candle Number 4,Candle,8.0
+SKU-CD010,Candle Number 5,Candle,8.0
+SKU-CD011,Candle Number 6,Candle,9.11
+SKU-CD012,Candle Number 7,Candle,8.0
+SKU-CD013,Candle Number 8,Candle,8.0
+SKU-CD014,Candle Number 9,Candle,8.0
+SKU-CD015,Candle Magic,Candle,5.0
+SKU-CD016,Candle Short Green,Candle,3.3
+SKU-CD017,Candle Short Green M,Candle,3.3
+SKU-CD018,Candle Short Purple,Candle,3.3
+SKU-CD019,Candle Short Purple M,Candle,3.3
+SKU-CD020,Candle Short Orange,Candle,3.3
+SKU-CD021,Candle Short Yellow,Candle,3.3
+SKU-CD022,Candle Bear,Candle,5.0
+SKU-CD023,Candle HB Mix,Candle,15.0
+SKU-CD024,Candle Rabbit,Candle,5.0
+SKU-BA001,Topper HB,Acces,3.0
+SKU-BA002,Extra Cake,Acces,50.0
+SKU-BA003,Lighter,Acces,4.0
+SKU-BA004,Crown,Acces,50.0
+SKU-BA005,Cake Knife,Acces,5.0

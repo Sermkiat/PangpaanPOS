@@ -1,12 +1,14 @@
 {
   "name": "pangpaan-pos",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check": "npm run lint && npm run build",
+    "import:products": "node scripts/import-products.js"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

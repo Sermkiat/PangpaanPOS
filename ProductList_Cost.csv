@@ -1,0 +1,55 @@
+SKU,Product Name Eng,Product Name thai,Product Code,Group,1 Unit Product,Price uint,Cost per Unit
+SKU-CK001,Butter Cake STR Jam ปอนด์,บัตเตอร์เค้ก หน้าแยมสตรอเบอร์รี่ - ปอนด์,CK-BTC-SJ-SS-P,Cake,ปอนด์,350,34.49
+SKU-CK002,Butter Cake BLU Jam ปอนด์,บัตเตอร์เค้ก หน้าแยมบลูเบอร์รี่ - ปอนด์,CK-BTC-BJ-BB-P,Cake,ปอนด์,350,43.07
+SKU-CK003,Butter Cake MIX Jam ปอนด์,บัตเตอร์เค้ก หน้าแยมบลู สตรอ - ปอนด์,CK-BTC-SJ-SJ-P,Cake,ปอนด์,350,45.28
+SKU-CK004,Butter STR Fruit Half ปอนด์,บัตเตอร์เค้ก สตรอเบอร์รี่ เพิ่มผลไม้สด ครึ่งหน้าเค้ก - ปอนด์,CK-BTC-SJ-FH-P,Cake,ปอนด์,350,45.54
+SKU-CK005,Butter BLU Fruit Half ปอนด์,บัตเตอร์เค้ก บลูเบอร์รี่ เพิ่มผลไม้สด ครึ่งหน้าเค้ก - ปอนด์,CK-BTC-BJ-FH-P,Cake,ปอนด์,350,48.53
+SKU-CK006,Butter STR Fruit Full ปอนด์,บัตเตอร์เค้ก สตรอเบอร์รี่ เพิ่มผลไม้สด เต็มหน้าเค้ก - ปอนด์,CK-BTC-SJ-FF-P,Cake,ปอนด์,350,29.82
+SKU-CK007,Butter BLU Fruit Full ปอนด์,บัตเตอร์เค้ก บลูเบอร์รี่ เพิ่มผลไม้สด เต็มหน้าเค้ก - ปอนด์,CK-BTC-BJ-FF-P,Cake,ปอนด์,350,32.81
+SKU-CK008,Butter STR Jam ชิ้น,บัตเตอร์เค้ก หน้าแยมสตรอเบอร์รี่ - ชิ้น,CK-BTC-SJ-SS-E,Cake,ชิ้น,350,4.31
+SKU-CK009,Butter BLU Jam ชิ้น,บัตเตอร์เค้ก หน้าแยมบลูเบอร์รี่ - ชิ้น,CK-BTC-BJ-BB-E,Cake,ชิ้น,350,5.38
+SKU-CK010,Butter Minimal STR ปอนด์,บัตเตอร์เค้ก มินิมอล แยมสตรอเบอร์รี่ - ปอนด์,CK-BTC-SJ-SS-H,Cake,ครึ่งปอนด์,350,34.49
+SKU-CK011,Butter Minimal BLU ปอนด์,บัตเตอร์เค้ก มินิมอล แยมบลูเบอร์รี่ - ปอนด์,CK-BTC-BJ-BB-H,Cake,ครึ่งปอนด์,350,43.07
+SKU-CK012,Butter Mix 8pcs,บัตเตอร์เค้ก รวมชิ้น (รวม 8 ชิ้น),CK-BTC-BC-E8-E,Cake,ชิ้น,350,5.59
+SKU-CK013,Butter Mix 10pcs,บัตเตอร์เค้ก รวมชิ้น (รวม 10 ชิ้น),CK-BTC-BC-10-E,Cake,ชิ้น,350,5.54
+SKU-CK014,Fudge Choc ชิ้น,ช็อกโกแลตฟัดจ์ - ชิ้น,CK-CFD-C-FE-E,Cake,ชิ้น,350,7.65
+SKU-CK015,Fudge Choc Almond ปอนด์,ช็อกโกแลตฟัดจ์ หน้าอัลมอนด์สไลด์ - ปอนด์,CK-CFD-CF-NA-P,Cake,ปอนด์,350,73.30
+SKU-CK016,Fudge Choc Fruit Half ปอนด์,ช็อกโกแลตฟัดจ์ เพิ่มผลไม้สด ครึ่งหน้าเค้ก - ปอนด์,CK-CFD-CF-FH-P,Cake,ปอนด์,350,75.46
+SKU-CK017,Fudge Choc Fruit Full ปอนด์,ช็อกโกแลตฟัดจ์ เพิ่มผลไม้สด เต็มหน้าเค้ก - ปอนด์,CK-CFD-CF-FF-P,Cake,ปอนด์,350,59.75
+SKU-CK018,Fudge Choc STR Jam ปอนด์,ช็อกโกแลตฟัดจ์ เพิ่มหน้าแยมสตรอเบอร์รี่ - ปอนด์,CK-CFD-CF-SS-P,Cake,ปอนด์,350,64.41
+SKU-CK019,Chiffon Orange ชิ้น,ชิฟฟ่อนเค้กส้ม - ชิ้น,CK-CFO-OJ-FE-E,Cake,ชิ้น,350,5.71
+SKU-CK020,Chiffon Orange Fruit Half ปอนด์,ชิฟฟ่อนเค้กส้ม เพิ่มผลไม้สด ครึ่งหน้าเค้ก - ปอนด์,CK-CFO-OJ-FH-P,Cake,ปอนด์,350,59.93
+SKU-CK021,Chiffon Orange Fruit Full ปอนด์,ชิฟฟ่อนเค้กส้ม เพิ่มผลไม้สด เต็มหน้าเค้ก - ปอนด์,CK-CFO-OJ-FF-P,Cake,ปอนด์,350,44.22
+SKU-CK022,Chiffon Coconut ชิ้น,ชิฟฟ่อนเค้กมะพร้าว - ชิ้น,CK-CFC-WC-FE-E,Cake,ชิ้น,350,3.86
+SKU-CK023,Chiffon Coconut Fruit Half ปอนด์,ชิฟฟ่อนเค้กมะพร้าว เพิ่มผลไม้สด ครึ่งหน้าเค้ก - ปอนด์,CK-CFC-WC-FH-P,Cake,ปอนด์,350,45.08
+SKU-CK024,Chiffon Coconut Fruit Full ปอนด์,ชิฟฟ่อนเค้กมะพร้าว เพิ่มผลไม้สด เต็มหน้าเค้ก - ปอนด์,CK-CFC-WC-FF-P,Cake,ปอนด์,350,29.37
+SKU-CK025,Custom Cake,เค้กสั่งทำ,CK-BTC-BC-FF-P,Cake,ปอนด์,350,43.20
+SKU-CD001,Candle Spiral,เทียนเกลียว,CD-CSL-MC-01,Candle,กล่อง,25,4.50
+SKU-CD002,Candle Spiral Mix M,เทียนเกลียว คละสี M,CD-CSL-MC-M1,Candle,กล่อง,25,4.50
+SKU-CD003,Candle Spiral Gold M,เทียนเกลียว ทอง M,CD-CSL-GC-M1,Candle,กล่อง,25,4.50
+SKU-CD004,Candle Spiral YG M,เทียนเกลียว เหลืองเเขียว M,CD-CSL-YG-M1,Candle,กล่อง,25,4.50
+SKU-CD005,Candle Number 0,เทียนวันเกิด ตัวเลข 0,CD-CDN-PT-00,Candle,กล่อง,25,8.00
+SKU-CD006,Candle Number 1,เทียนวันเกิด ตัวเลข 1,CD-CDN-PT-01,Candle,กล่อง,25,7.38
+SKU-CD007,Candle Number 2,เทียนวันเกิด ตัวเลข 2,CD-CDN-PT-02,Candle,กล่อง,25,6.56
+SKU-CD008,Candle Number 3,เทียนวันเกิด ตัวเลข 3,CD-CDN-PT-03,Candle,กล่อง,25,6.00
+SKU-CD009,Candle Number 4,เทียนวันเกิด ตัวเลข 4,CD-CDN-PT-04,Candle,กล่อง,25,8.00
+SKU-CD010,Candle Number 5,เทียนวันเกิด ตัวเลข 5,CD-CDN-PT-05,Candle,กล่อง,25,8.00
+SKU-CD011,Candle Number 6,เทียนวันเกิด ตัวเลข 6,CD-CDN-PT-06,Candle,กล่อง,25,9.11
+SKU-CD012,Candle Number 7,เทียนวันเกิด ตัวเลข 7,CD-CDN-PT-07,Candle,กล่อง,25,8.00
+SKU-CD013,Candle Number 8,เทียนวันเกิด ตัวเลข 8,CD-CDN-PT-08,Candle,กล่อง,25,8.00
+SKU-CD014,Candle Number 9,เทียนวันเกิด ตัวเลข 9,CD-CDN-PT-09,Candle,กล่อง,25,8.00
+SKU-CD015,Candle Magic,เทียนเป่าไม่ดับ,CD-CRL-NC-T1,Candle,กล่อง,25,5.00
+SKU-CD016,Candle Short Green,เทียนสั้น เขียว,CD-CSS-GR-T1,Candle,กล่อง,25,3.30
+SKU-CD017,Candle Short Green M,เทียนสั้น เขียว M,CD-CSS-GR-M1,Candle,กล่อง,25,3.30
+SKU-CD018,Candle Short Purple,เทียนสั้น ม่วง,CD-CSS-PU-T1,Candle,กล่อง,25,3.30
+SKU-CD019,Candle Short Purple M,เทียนสั้น ม่วง M,CD-CSS-PU-M1,Candle,กล่อง,25,3.30
+SKU-CD020,Candle Short Orange,เทียนสั้น ส้ม,CD-CSS-OR-T1,Candle,กล่อง,25,3.30
+SKU-CD021,Candle Short Yellow,เทียนสั้น เหลือง,CD-CSS-YE-T1,Candle,กล่อง,25,3.30
+SKU-CD022,Candle Bear,เทียนหมีตัวละ,CD-CSP-BR-T1,Candle,กล่อง,25,5.00
+SKU-CD023,Candle HB Mix,เทียน Happy Birthday คละสี,CD-CMS-MC-T1,Candle,กล่อง,25,15.00
+SKU-CD024,Candle Rabbit,เทียนกระต่าย,CD-CSP-RB-T1,Candle,กล่อง,25,5.00
+SKU-BA001,Topper HB,ป้ายวันเกิด,BA-HBS-01-NC,Acces,ชิ้น,25,3.00
+SKU-BA002,Extra Cake,เพิ่มเค้ก,BA-CAD-01-NC,Acces,ชิ้น,25,50.00
+SKU-BA003,Lighter,ไฟแช็ก,BA-LTR-01-NC,Acces,ชิ้น,10,4.00
+SKU-BA004,Crown,มงกุฎ,BA-CRW-01-GC,Acces,ชิ้น,100,50.00
+SKU-BA005,Cake Knife,มีดตัดเค้ก,BA-CKK-01-NC,Acces,ชิ้น,10,5.00

@@ -52,20 +52,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-orange-700">Pangpaan POS System</p>
-          <h1 className="text-3xl font-extrabold text-orange-950">Dashboard</h1>
-          <p className="text-sm text-orange-700">Sales · Cost · Waste · GP</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/pos" className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "gap-2")}>
-            Go to POS
-          </Link>
-          <Link href="/orders" className={cn(buttonVariants({ size: "lg" }), "gap-2 flex items-center")}> 
-            <BarChart3 size={18} />Orders Queue
-          </Link>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-3xl font-extrabold text-orange-950">Dashboard</h1>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

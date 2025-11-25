@@ -58,6 +58,9 @@ export type Order = {
   createdAt: string;
   paidAt?: string | null;
   servedAt?: string | null;
+  note?: string | null;
+   cashReceived?: number | null;
+   change?: number | null;
   items: OrderLine[];
 };
 
@@ -72,11 +75,52 @@ export type AllocationRule = {
   active: boolean;
 };
 
+const generateLocalOrder = (
+  lines: OrderLine[],
+  products: Product[],
+  paymentMethod: Order["paymentMethod"],
+  paymentStatus: Order["paymentStatus"],
+  fulfillmentStatus: Order["fulfillmentStatus"],
+  note?: string,
+  cashReceived?: number | null,
+  change?: number | null,
+): Order => {
+  const now = new Date().toISOString();
+  const total = lines.reduce((sum, l) => {
+    const product = products.find((p) => p.id === l.productId);
+    const price = product?.price ?? l.unitPrice ?? 0;
+    return sum + price * l.qty;
+  }, 0);
+  return {
+    id: Math.floor(Math.random() * 1_000_000_000),
+    orderNumber: `LOCAL-${Date.now().toString().slice(-6)}`,
+    paymentStatus,
+    fulfillmentStatus,
+    paymentMethod,
+    total,
+    createdAt: now,
+    paidAt: paymentStatus === "paid" ? now : null,
+    servedAt: fulfillmentStatus === "finished" ? now : null,
+    note: note || null,
+    cashReceived: cashReceived ?? null,
+    change: change ?? null,
+    items: lines.map((l) => ({
+      productId: l.productId,
+      qty: l.qty,
+      name: l.name,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+    })),
+  };
+};
+
 const withNames = (orders: any[], products: Product[]): Order[] => {
   return orders.map((o) => ({
     ...o,
     paymentStatus: (o as any).paymentStatus || (o as any).status || "paid",
     fulfillmentStatus: (o as any).fulfillmentStatus || (o as any).status || "waiting",
+    cashReceived: (o as any).cashReceived != null ? Number((o as any).cashReceived) : null,
+    change: (o as any).change != null ? Number((o as any).change) : null,
     items: (o.items || []).map((line: any) => {
       const product = products.find((p) => p.id === line.productId);
       const unitPrice = Number(line.unitPrice ?? product?.price ?? 0);
@@ -117,13 +161,34 @@ type StoreState = {
   waste: Waste[];
   allocationRules: AllocationRule[];
   loading: boolean;
+  cartCount: number;
   initFromApi: () => Promise<void>;
   addProduct: (p: Omit<Product, "id">) => Promise<Product>;
   updateProduct: (id: number, p: Partial<Omit<Product, "id">>) => Promise<void>;
   removeProduct: (id: number) => Promise<void>;
   toggleProductActive: (id: number, active: boolean) => Promise<void>;
-  addOrder: (lines: OrderLine[], paymentMethod: Order["paymentMethod"], paymentStatus: Order["paymentStatus"], fulfillmentStatus: Order["fulfillmentStatus"]) => Promise<Order>;
-  updateOrderStatus: (id: number, fulfillmentStatus: Order["fulfillmentStatus"]) => Promise<void>;
+  addOrder: (
+    lines: OrderLine[],
+    paymentMethod: Order["paymentMethod"],
+    paymentStatus: Order["paymentStatus"],
+    fulfillmentStatus: Order["fulfillmentStatus"],
+    cashReceived?: number | null,
+    change?: number | null,
+  ) => Promise<Order>;
+  setCartCount: (count: number) => void;
+  setNote: (note: string) => void;
+  note?: string;
+  updateOrderStatus: (
+    id: number,
+    fulfillmentStatus: Order["fulfillmentStatus"],
+    paymentStatus?: Order["paymentStatus"],
+    paidAt?: string | null,
+    servedAt?: string | null,
+    paymentMethod?: Order["paymentMethod"],
+    cashReceived?: number | null,
+    change?: number | null,
+  ) => Promise<void>;
+  setCartCount: (count: number) => void;
   adjustItemStock: (itemId: number, delta: number, reason?: string) => Promise<void>;
   addItem: (payload: Omit<Item, "id">) => Promise<void>;
   updateItem: (id: number, payload: Partial<Omit<Item, "id">>) => Promise<void>;
@@ -136,6 +201,14 @@ type StoreState = {
   fetchRecipes: () => Promise<void>;
 };
 
+const SAMPLE_PRODUCTS: Product[] = [
+  { id: 9001, sku: "CAKE-CHOC", name: "Chocolate Cake", category: "Bakery", price: 120, active: true },
+  { id: 9002, sku: "CUP-VAN", name: "Vanilla Cupcake", category: "Bakery", price: 65, active: true },
+  { id: 9003, sku: "ROLL-MAT", name: "Matcha Roll", category: "Bakery", price: 85, active: true },
+  { id: 9004, sku: "TART-STR", name: "Strawberry Tart", category: "Bakery", price: 95, active: true },
+  { id: 9005, sku: "CHZ-BLU", name: "Blueberry Cheesecake", category: "Bakery", price: 150, active: true },
+];
+
 export const usePosStore = create<StoreState>()((set, get) => ({
   products: [],
   items: [],
@@ -146,6 +219,8 @@ export const usePosStore = create<StoreState>()((set, get) => ({
   waste: [],
   allocationRules: [],
   loading: false,
+  cartCount: 0,
+  note: "",
 
   initFromApi: async () => {
     set({ loading: true });
@@ -187,9 +262,22 @@ export const usePosStore = create<StoreState>()((set, get) => ({
         allocationRules,
         loading: false,
       });
+      if (!products.length) {
+        set((state) => ({ products: SAMPLE_PRODUCTS, orders: state.orders || [] }));
+      }
     } catch (err) {
       console.error("initFromApi failed", err);
-      set({ loading: false });
+      set((state) => ({
+        loading: false,
+        products: state.products.length ? state.products : SAMPLE_PRODUCTS,
+        items: state.items,
+        inventoryMovements: state.inventoryMovements,
+        recipes: state.recipes,
+        orders: state.orders,
+        expenses: state.expenses,
+        waste: state.waste,
+        allocationRules: state.allocationRules,
+      }));
     }
   },
 
@@ -215,23 +303,72 @@ export const usePosStore = create<StoreState>()((set, get) => ({
     set((state) => ({ products: state.products.map((prod) => (prod.id === id ? { ...prod, ...updated, active } : prod)) }));
   },
 
-  addOrder: async (lines, paymentMethod, paymentStatus, fulfillmentStatus) => {
+  addOrder: async (lines, paymentMethod, paymentStatus, fulfillmentStatus, cashReceived, change) => {
     const payload = {
       paymentMethod,
       paymentStatus,
       fulfillmentStatus,
+      note: get().note,
+      cashReceived,
+      change,
       items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
     };
-    const created = await api.createOrder(payload);
-    const orderWithNames = withNames([created], get().products)[0];
-    set((state) => ({ orders: [orderWithNames, ...state.orders] }));
-    return orderWithNames;
+    try {
+      const created = await api.createOrder(payload);
+      const orderWithNames = withNames([created], get().products)[0];
+      set((state) => ({ orders: [orderWithNames, ...state.orders] }));
+      return orderWithNames;
+    } catch (err) {
+      console.warn("addOrder fallback to local", err);
+      const localOrder = generateLocalOrder(lines, get().products, paymentMethod, paymentStatus, fulfillmentStatus, get().note, cashReceived, change);
+      set((state) => ({ orders: [localOrder, ...state.orders] }));
+      return localOrder;
+    }
   },
 
-  updateOrderStatus: async (id, fulfillmentStatus) => {
-    const updated = await api.updateOrderStatus(id, fulfillmentStatus);
-    set((state) => ({ orders: state.orders.map((o) => (o.id === id ? { ...o, ...updated, fulfillmentStatus } : o)) }));
+  updateOrderStatus: async (id, fulfillmentStatus, paymentStatus, paidAt, servedAt, paymentMethod, cashReceived, change) => {
+    try {
+      const updated = await api.updateOrderStatus(id, fulfillmentStatus);
+      set((state) => ({
+        orders: state.orders.map((o) =>
+          o.id === id
+            ? {
+                ...o,
+                ...updated,
+                fulfillmentStatus,
+                paymentStatus: paymentStatus ?? o.paymentStatus,
+                paidAt: paidAt ?? o.paidAt,
+                servedAt: servedAt ?? o.servedAt,
+                paymentMethod: paymentMethod ?? o.paymentMethod,
+                cashReceived: cashReceived ?? o.cashReceived ?? null,
+                change: change ?? o.change ?? null,
+              }
+            : o,
+        ),
+      }));
+    } catch (err) {
+      console.warn("updateOrderStatus fallback local", err);
+      set((state) => ({
+        orders: state.orders.map((o) =>
+              o.id === id
+                ? {
+                    ...o,
+                    fulfillmentStatus,
+                    paymentStatus: paymentStatus ?? o.paymentStatus,
+                    paidAt: paidAt ?? o.paidAt,
+                    servedAt: servedAt ?? o.servedAt,
+                    paymentMethod: paymentMethod ?? o.paymentMethod,
+                    cashReceived: cashReceived ?? o.cashReceived ?? null,
+                    change: change ?? o.change ?? null,
+                  }
+                : o,
+        ),
+      }));
+    }
   },
+
+  setCartCount: (count: number) => set({ cartCount: count }),
+  setNote: (note: string) => set({ note }),
 
   adjustItemStock: async (itemId, delta, reason) => {
     const updated = await api.adjustItemStock(itemId, delta, reason);

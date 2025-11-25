@@ -26,12 +26,14 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://pang:pangpass@db:5432/pangpaan_pos
+      DATABASE_URL: ${DATABASE_URL:-postgresql://pang:pangpass@db:5432/pangpaan_pos}
       PORT: 8000
+      PUBLIC_UPLOAD_BASE: ${PUBLIC_UPLOAD_BASE:-http://localhost:8088}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/api/uploads}
     ports:
       - "8088:8000"
     volumes:
-      - ./api:/app/api:rw
+      - ./api/uploads:/app/api/uploads
 
   web:
     build:
@@ -48,10 +50,11 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: pangpaan_tunnel
+    profiles: ["tunnel"]
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
 
   watchtower:
     image: containrrr/watchtower

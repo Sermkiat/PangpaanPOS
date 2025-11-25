@@ -67,6 +67,8 @@ export const orders = pgTable("orders", {
   fulfillmentStatus: varchar("fulfillment_status", { length: 16 }).notNull().default("waiting"),
   total: doublePrecision("total").notNull().default(0),
   paymentMethod: varchar("payment_method", { length: 32 }).notNull().default("cash"),
+  cashReceived: doublePrecision("cash_received"),
+  change: doublePrecision("change"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   servedAt: timestamp("served_at", { withTimezone: true }),
   notes: text("notes"),
