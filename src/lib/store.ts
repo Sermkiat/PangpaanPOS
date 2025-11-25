@@ -188,7 +188,6 @@ type StoreState = {
     cashReceived?: number | null,
     change?: number | null,
   ) => Promise<void>;
-  setCartCount: (count: number) => void;
   adjustItemStock: (itemId: number, delta: number, reason?: string) => Promise<void>;
   addItem: (payload: Omit<Item, "id">) => Promise<void>;
   updateItem: (id: number, payload: Partial<Omit<Item, "id">>) => Promise<void>;

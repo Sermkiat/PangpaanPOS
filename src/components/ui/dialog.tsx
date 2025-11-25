@@ -29,12 +29,14 @@ export function Dialog({ open: controlledOpen, defaultOpen = false, onOpenChange
   return <DialogContext.Provider value={value}>{children}</DialogContext.Provider>;
 }
 
-export function DialogTrigger({ asChild = false, children }: { asChild?: boolean; children: React.ReactElement }) {
+export function DialogTrigger({ asChild = false, children }: { asChild?: boolean; children: React.ReactElement<any> }) {
   const ctx = useDialog();
   if (asChild) {
-    return React.cloneElement(children, {
+    const child = children as React.ReactElement<any>;
+    return React.cloneElement(child, {
+      ...child.props,
       onClick: (e: React.MouseEvent) => {
-        children.props.onClick?.(e);
+        child.props?.onClick?.(e);
         ctx.setOpen(true);
       },
     });

@@ -33,7 +33,7 @@ app.use("/", financeRoutes);
 app.use("/", debtsRoutes);
 app.use("/", reserveRoutes);
 
-app.use((err: unknown, _req: express.Request, res: express.Response) => {
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
   return fail(res, err, 500);
 });

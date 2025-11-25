@@ -153,12 +153,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           if (pathname === "/pos") {
             requestAnimationFrame(scrollToPay);
           } else {
-            router.push("/pos").then(() => {
-              requestAnimationFrame(() => {
-                if (typeof window !== "undefined") {
-                  window.dispatchEvent(new Event("scroll-to-pay"));
-                }
-              });
+            router.push("/pos");
+            requestAnimationFrame(() => {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new Event("scroll-to-pay"));
+              }
             });
           }
         }}
