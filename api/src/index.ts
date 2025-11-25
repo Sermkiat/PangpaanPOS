@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { existsSync, mkdirSync } from "fs";
 import { fail } from "./utils/http.js";
 import productRoutes from "./routes/products.js";
 import inventoryRoutes from "./routes/inventory.js";
@@ -12,10 +13,15 @@ import debtsRoutes from "./routes/debts.js";
 import reserveRoutes from "./routes/reserve.js";
 
 const app = express();
+const uploadDir = process.env.UPLOAD_DIR || "/app/uploads";
+if (!existsSync(uploadDir)) {
+  mkdirSync(uploadDir, { recursive: true });
+}
 
 app.use(helmet());
 app.use(cors({ origin: "*" }));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "25mb" }));
+app.use("/uploads", express.static(uploadDir));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

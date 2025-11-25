@@ -12,8 +12,15 @@ export function ok<T>(res: Response, data: T, status = 200) {
   return res.status(status).json({ success: true, data });
 }
 
-export function fail(res: Response, error: unknown, status = 400) {
+type AnyError = Error & { status?: number; detail?: unknown };
+
+export function fail(res: Response, error: unknown, defaultStatus = 400) {
+  const err = error as AnyError;
+  const status = typeof err?.status === "number" ? err.status : defaultStatus;
+  const detail = (err as any)?.detail;
   const message =
-    error instanceof Error ? error.message : typeof error === "string" ? error : "Unknown error";
-  return res.status(status).json({ success: false, error: message });
+    err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
+  const payload: Record<string, unknown> = { success: false, error: message };
+  if (detail) payload.detail = detail;
+  return res.status(status).json(payload);
 }

@@ -8,6 +8,7 @@ import pkg from "../../../package.json";
 import React from "react";
 import Image from "next/image";
 import { CartFloatingButton } from "../CartFloatingButton";
+import { SwReset } from "../sw-reset";
 import { usePosStore } from "@/lib/store";
 
 const navItems = [
@@ -41,6 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
+      <SwReset />
       <header
         className="sticky top-0 z-20 border-b border-slate-200 bg-slate-900 text-white"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
@@ -76,7 +78,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">{children}</main>
       <footer className="border-t border-slate-200 bg-white py-3 text-center text-xs text-slate-500">
-        Pangpaan POS · Offline-friendly PWA · Powered by Next.js + Express + Drizzle
+        Pangpaan POS · Offline-friendly PWA · Powered by Next.js + Express + Drizzle · CacheMarker: POS-2025-11-24-2308
       </footer>
       <CartFloatingButton itemCount={badgeCount} navigateToPOS={() => router.push("/pos")} />
     </div>

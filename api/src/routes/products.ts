@@ -4,15 +4,20 @@ import { db } from "../db/client.js";
 import { products, productComponents, components, items } from "../db/schema.js";
 import { asyncHandler, ok } from "../utils/http.js";
 import { eq } from "drizzle-orm";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+import path from "path";
 
 const router = Router();
+const uploadDir = process.env.UPLOAD_DIR || "/app/uploads";
+const publicUploadBase = (process.env.PUBLIC_UPLOAD_BASE || "").replace(/\/$/, "");
+const MAX_IMAGE_SIZE_BYTES = 1_000_000;
 
 const productInput = z.object({
-  sku: z.string().min(1),
+  sku: z.string().optional(),
   name: z.string().min(1),
-  category: z.string().default("General"),
+  category: z.string().optional(),
   price: z.number().nonnegative(),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().optional(), // URL หรือ data:image;base64
   active: z.boolean().optional(),
   components: z
     .array(
@@ -23,6 +28,46 @@ const productInput = z.object({
     )
     .default([]),
 });
+
+const slugify = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32) || "pp";
+
+const ensureUploadDir = () => {
+  if (!existsSync(uploadDir)) {
+    mkdirSync(uploadDir, { recursive: true });
+  }
+};
+
+function saveBase64Image(dataUrl?: string) {
+  if (!dataUrl) return undefined;
+  const trimmed = dataUrl.trim();
+  if (!trimmed) return undefined;
+  if (!trimmed.startsWith("data:image")) return trimmed;
+
+  const [meta, base64] = trimmed.split(",");
+  if (!base64) return trimmed;
+  const buffer = Buffer.from(base64, "base64");
+  if (buffer.length > MAX_IMAGE_SIZE_BYTES) {
+    const err: any = new Error("Image too large (max 1MB)");
+    err.status = 413;
+    throw err;
+  }
+  const match = /data:image\/(.+);base64/.exec(meta || "");
+  const ext = (match?.[1] || "png").split(/[+;]/)[0];
+
+  // ถ้าไม่กำหนด public base ให้เก็บ data URL ไว้ตรง ๆ เพื่อให้ UI แสดงผลได้แน่นอน
+  if (!publicUploadBase) return trimmed;
+
+  ensureUploadDir();
+  const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  const filePath = path.join(uploadDir, fileName);
+  writeFileSync(filePath, buffer);
+  return `${publicUploadBase}/uploads/${fileName}`;
+}
 
 router.get(
   "/",
@@ -36,29 +81,45 @@ router.post(
   "/",
   asyncHandler(async (req, res) => {
     const input = productInput.parse(req.body);
-    const [created] = await db
-      .insert(products)
-      .values({
-        sku: input.sku,
-        name: input.name,
-        category: input.category,
-        price: input.price,
-        imageUrl: input.imageUrl,
-        active: input.active ?? true,
-      })
-      .returning();
+    const name = input.name.trim();
+    const category = (input.category || "General").trim() || "General";
+    const sku = (input.sku?.trim() || `${slugify(name)}-${Date.now().toString().slice(-4)}`).slice(0, 64);
+    const cleanedImageUrl = saveBase64Image(input.imageUrl);
+    try {
+      const [created] = await db
+        .insert(products)
+        .values({
+          sku,
+          name,
+          category,
+          price: Number(input.price ?? 0),
+          imageUrl: cleanedImageUrl,
+          active: input.active ?? true,
+        })
+        .returning();
 
-    if (input.components.length) {
-      await db.insert(productComponents).values(
-        input.components.map((c) => ({
-          productId: created.id,
-          componentId: c.componentId,
-          qty: c.qty,
-        })),
-      );
+      if (input.components.length) {
+        await db.insert(productComponents).values(
+          input.components.map((c) => ({
+            productId: created.id,
+            componentId: c.componentId,
+            qty: c.qty,
+          })),
+        );
+      }
+
+      return ok(res, created, 201);
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        console.error("Create product duplicate SKU", err?.detail || err?.message);
+        return res.status(409).json({ success: false, error: "SKU already exists", detail: err?.detail });
+      }
+      if (err?.status) {
+        return res.status(err.status).json({ success: false, error: err.message });
+      }
+      console.error("Create product failed", err);
+      throw err;
     }
-
-    return ok(res, created, 201);
   }),
 );
 
@@ -67,27 +128,50 @@ router.put(
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const input = productInput.partial().parse(req.body);
-    const [updated] = await db
-      .update(products)
-      .set({ ...input, updatedAt: new Date() })
-      .where(eq(products.id, id))
-      .returning();
-    if (!updated) {
-      return res.status(404).json({ success: false, error: "Product not found" });
-    }
-    if (input.components) {
-      await db.delete(productComponents).where(eq(productComponents.productId, id));
-      if (input.components.length) {
-        await db.insert(productComponents).values(
-          input.components.map((c) => ({
-            productId: id,
-            componentId: c.componentId,
-            qty: c.qty,
-          })),
-        );
+    const cleanedUpdateImage = input.imageUrl !== undefined ? saveBase64Image(input.imageUrl) : undefined;
+    const sku = input.sku?.trim();
+
+    const updatePayload: any = { updatedAt: new Date() };
+    if (sku) updatePayload.sku = sku;
+    if (input.name !== undefined) updatePayload.name = input.name.trim();
+    if (input.category !== undefined) updatePayload.category = input.category.trim() || "General";
+    if (input.price !== undefined) updatePayload.price = Number(input.price);
+    if (input.active !== undefined) updatePayload.active = input.active;
+    if (cleanedUpdateImage !== undefined) updatePayload.imageUrl = cleanedUpdateImage;
+
+    try {
+      const [updated] = await db
+        .update(products)
+        .set(updatePayload)
+        .where(eq(products.id, id))
+        .returning();
+      if (!updated) {
+        return res.status(404).json({ success: false, error: "Product not found" });
       }
+      if (input.components) {
+        await db.delete(productComponents).where(eq(productComponents.productId, id));
+        if (input.components.length) {
+          await db.insert(productComponents).values(
+            input.components.map((c) => ({
+              productId: id,
+              componentId: c.componentId,
+              qty: c.qty,
+            })),
+          );
+        }
+      }
+      return ok(res, updated);
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        console.error("Update product duplicate SKU", err?.detail || err?.message);
+        return res.status(409).json({ success: false, error: "SKU already exists", detail: err?.detail });
+      }
+      if (err?.status) {
+        return res.status(err.status).json({ success: false, error: err.message });
+      }
+      console.error("Update product failed", err);
+      throw err;
     }
-    return ok(res, updated);
   }),
 );
 
@@ -114,13 +198,6 @@ router.post(
     return ok(res, created, 201);
   }),
 );
-
-const slugify = (name: string) =>
-  name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 32) || "pp";
 
 router.post(
   "/import",
@@ -163,7 +240,8 @@ router.post(
       const price = Number((cols[priceIdx] ?? "0").trim()) || 0;
       const unit = (cols[unitIdx] ?? "unit").trim() || "unit";
       const stockQty = Number((cols[stockIdx] ?? "0").trim()) || 0;
-      const imageUrl = (cols[imageIdx] ?? "").trim() || undefined;
+      const rawImage = (cols[imageIdx] ?? "").trim() || undefined;
+      const imageUrl = rawImage?.startsWith("data:image") ? saveBase64Image(rawImage) : rawImage;
       const activeRaw = (cols[activeIdx] ?? "").trim().toLowerCase();
       const active = activeRaw ? activeRaw === "true" || activeRaw === "1" : true;
       const idVal = idIdx >= 0 ? Number((cols[idIdx] ?? "").trim()) : undefined;

@@ -34,8 +34,10 @@ export default function InventoryPage() {
     toggleProductActive,
     removeProduct,
     fetchInventoryMovements,
+    initFromApi,
   } = usePosStore();
 
+  const [productStatus, setProductStatus] = useState<string>("");
   const [adjustments, setAdjustments] = useState<Record<number, number>>({});
   const [adjustNotes, setAdjustNotes] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
@@ -120,17 +122,27 @@ export default function InventoryPage() {
     reader.readAsDataURL(file);
   };
 
-  const submitProduct = () => {
-    if (!newProduct.name || !newProduct.sku || !newProduct.category || newProduct.price <= 0) return;
-    addProduct({
-      name: newProduct.name,
-      sku: newProduct.sku,
-      category: newProduct.category,
-      price: newProduct.price,
-      imageUrl: newProduct.imageUrl,
-      active: newProduct.active,
-    });
-    setNewProduct({ name: "", sku: "", category: "", price: 0, imageUrl: "", active: true, costPerUnit: 0, reorderPoint: 0, stockQty: 0 });
+  const submitProduct = async () => {
+    if (!newProduct.name || !newProduct.category || newProduct.price <= 0) {
+      setProductStatus('กรอกชื่อ / หมวด / ราคาให้ครบ');
+      return;
+    }
+    const sku = newProduct.sku?.trim() || `SKU-${Date.now()}`;
+    try {
+      await addProduct({
+        name: newProduct.name,
+        sku,
+        category: newProduct.category,
+        price: newProduct.price,
+        imageUrl: newProduct.imageUrl,
+        active: newProduct.active,
+      });
+      setProductStatus('บันทึกสินค้าแล้ว');
+      setNewProduct({ name: "", sku: "", category: "", price: 0, imageUrl: "", active: true, costPerUnit: 0, reorderPoint: 0, stockQty: 0 });
+      await initFromApi();
+    } catch (err: any) {
+      setProductStatus('บันทึกไม่สำเร็จ: ' + (err?.message || err));
+    }
   };
 
   return (
@@ -199,7 +211,10 @@ export default function InventoryPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Add / Update Product</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Add / Update Product</CardTitle>
+              <a href="/products/import" className="text-xs text-emerald-700 underline">CSV Import</a>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -254,6 +269,7 @@ export default function InventoryPage() {
                 <option key={c} value={c} />
               ))}
             </datalist>
+            {productStatus && <div className="text-xs text-emerald-700">{productStatus}</div>}
           </CardContent>
         </Card>
 
@@ -354,6 +370,7 @@ export default function InventoryPage() {
           <Table>
             <THead>
               <tr>
+                <TH>Image</TH>
                 <TH>Product</TH>
                 <TH>Category</TH>
                 <TH>Price</TH>
@@ -364,6 +381,9 @@ export default function InventoryPage() {
             <TBody>
               {products.map((p) => (
                 <tr key={p.id} className={!p.active ? "opacity-60" : ""}>
+                  <TD>
+                    <img src={p.imageUrl || 'https://placehold.co/80x60'} alt={p.name} className="h-12 w-16 rounded-md object-cover border" />
+                  </TD>
                   <TD>
                     <div className="font-semibold text-slate-900">{p.name}</div>
                     <div className="text-xs text-slate-600">{p.sku}</div>

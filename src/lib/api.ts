@@ -23,8 +23,24 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
     },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`API ${path} ${res.status}`);
-  const payload = await res.json();
+
+  const raw = await res.text();
+  if (!res.ok) {
+    let message = `API ${path} ${res.status}`;
+    try {
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed?.error) message = parsed.error;
+      else if (parsed?.message) message = parsed.message;
+    } catch (err) {
+      // ignore JSON parse error
+    }
+    const error: any = new Error(message);
+    error.status = res.status;
+    error.body = raw;
+    throw error;
+  }
+
+  const payload = raw ? JSON.parse(raw) : null;
   return (payload?.data ?? payload) as T;
 }
 
