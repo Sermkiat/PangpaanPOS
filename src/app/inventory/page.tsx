@@ -476,10 +476,6 @@ export default function InventoryPage() {
                             variant="primary"
                             onClick={async () => {
                               const payload = { ...p, ...productEdits[p.id] };
-                              await updateItem(p.id, {
-                                name: payload.name,
-                                costPerUnit: payload.costPerUnit ?? 0,
-                              });
                               await updateProduct(p.id, {
                                 name: payload.name,
                                 category: payload.category,
