@@ -224,15 +224,23 @@ export const usePosStore = create<StoreState>()((set, get) => ({
   initFromApi: async () => {
     set({ loading: true });
     try {
-      const [products, items, recipes, orders, expenses, waste, allocationRules, inventoryMovements] = await Promise.all([
-        api.getProducts(),
-        api.getItems(),
-        api.getRecipes(),
-        api.getOrders(),
-        api.getExpenses(),
-        api.getWaste(),
-        api.getAllocation(),
-        api.getInventoryMovements ? api.getInventoryMovements() : [],
+      const products = await api.getProducts();
+      const [
+        items,
+        recipes,
+        orders,
+        expenses,
+        waste,
+        allocationRules,
+        inventoryMovements,
+      ] = await Promise.all([
+        api.getItems().catch(() => []),
+        api.getRecipes().catch(() => []),
+        api.getOrders().catch(() => []),
+        api.getExpenses().catch(() => []),
+        api.getWaste().catch(() => []),
+        api.getAllocation().catch(() => []),
+        api.getInventoryMovements ? api.getInventoryMovements().catch(() => []) : [],
       ]);
 
       set({

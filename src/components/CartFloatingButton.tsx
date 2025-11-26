@@ -18,7 +18,7 @@ export function CartFloatingButton({ itemCount = 0, navigateToPOS, scrollToPay }
         navigateToPOS();
         scrollToPay?.();
       }}
-      className="fixed bottom-24 right-6 z-50 inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 text-white shadow-lg shadow-amber-300/60 ring-2 ring-white/70 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2"
+      className="fixed bottom-24 right-6 z-10 inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 text-white shadow-lg shadow-amber-300/60 ring-2 ring-white/70 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2"
       aria-label="ไปที่หน้าขาย"
     >
       <div className="relative h-10 w-10">

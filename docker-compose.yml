@@ -40,7 +40,7 @@ services:
       context: .
       dockerfile: Dockerfile.web
       args:
-        NEXT_PUBLIC_API_BASE: http://api:8000
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
     container_name: pangpaan_web
     depends_on:
       - api

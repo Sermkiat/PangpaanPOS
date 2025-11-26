@@ -260,8 +260,8 @@ export default function PosPage() {
       <div className="lg:col-span-3 space-y-4">
         <Card>
           <CardHeader className="flex flex-col gap-2">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 overflow-x-auto rounded-full bg-slate-100 px-2 py-1 text-sm">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex flex-1 items-center gap-2 overflow-x-auto rounded-full bg-slate-100 px-2 py-1 text-sm">
                 {categories.map((cat) => (
                   <button
                     key={cat}
@@ -275,13 +275,21 @@ export default function PosPage() {
                   </button>
                 ))}
               </div>
-              <div className="w-full">
-                <Input
-                  placeholder="ค้นหาสินค้า..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full"
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600 hidden sm:inline">แสดง {orderedProducts.length}</span>
+                <div className="relative">
+                  <Input
+                    placeholder="ค้นหา..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 w-40 md:w-56"
+                  />
+                  <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -333,7 +341,7 @@ export default function PosPage() {
         </Card>
       </div>
 
-      <div className="lg:col-span-2 space-y-4 lg:max-h-[calc(100vh-180px)] lg:overflow-auto pb-4">
+      <div className="lg:col-span-2 space-y-4 lg:max-h-[calc(100vh-140px)] lg:overflow-auto pb-4 lg:sticky lg:top-20">
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>Order Details</CardTitle>

@@ -216,10 +216,10 @@ router.post(
 
     const skuIdx = firstIdx("sku", "productcode");
     const idIdx = idx("id");
-    const nameIdx = firstIdx("name", "productnameeng", "productnamethai");
+    const nameIdx = firstIdx("name", "productnameeng", "productnamethai", "name_eng", "name_thai", "nameenglish");
     const categoryIdx = firstIdx("category", "group");
-    const priceIdx = idx("price");
-    const costIdx = firstIdx("cost", "costperunit", "cost/unit", "costperpiece");
+    const priceIdx = firstIdx("price", "priceuint", "price_unit", "price_baht", "pricebaht");
+    const costIdx = -1; // ignore cost column; use price only
     const unitIdx = firstIdx("unit", "1unitproduct", "unitproduct");
     const stockIdx = firstIdx("stockqty", "stock", "qty");
     const imageIdx = idx("imageurl");
@@ -243,10 +243,8 @@ router.post(
       if (!name) continue;
       const category = (cols[categoryIdx] ?? "General").trim() || "General";
       const priceRaw = priceIdx >= 0 ? (cols[priceIdx] ?? "0").trim() : "";
-      const costRaw = costIdx >= 0 ? (cols[costIdx] ?? "0").trim() : "";
-      const priceFromCsv = priceRaw ? Number(priceRaw) || 0 : 0;
-      const cost = costRaw ? Number(costRaw) || 0 : 0;
-      const price = priceFromCsv || cost; // fallback ใช้ cost เป็นราคาถ้าไม่มี price
+      const price = priceRaw ? Number(priceRaw) || 0 : 0; // ใช้ price จาก CSV เท่านั้น
+      const cost = 0; // ไม่ใช้ cost per unit จาก CSV
       const unit = (cols[unitIdx] ?? "unit").trim() || "unit";
       const stockQty = Number((cols[stockIdx] ?? "0").trim()) || 0;
       const rawImage = (cols[imageIdx] ?? "").trim() || undefined;

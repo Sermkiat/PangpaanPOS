@@ -98,7 +98,7 @@ export default function OrdersPage() {
           <CardTitle>Queue (waiting)</CardTitle>
           <Badge tone="orange">{waitingOrders.length}</Badge>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {waitingOrders.map((order) => (
             <div
               key={order.id}

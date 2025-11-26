@@ -14,7 +14,7 @@ export function DeliveryFloatingButton({ pendingDeliveries = 0, navigateToQueue 
     <button
       type="button"
       onClick={navigateToQueue}
-      className="fixed bottom-6 right-6 z-50 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-200 text-white shadow-lg shadow-emerald-300/60 ring-2 ring-white/70 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2"
+      className="fixed bottom-6 right-6 z-10 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-200 text-white shadow-lg shadow-emerald-300/60 ring-2 ring-white/70 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2"
       aria-label="ไปที่คิวส่งมอบ"
     >
       <div className="relative h-10 w-10">
