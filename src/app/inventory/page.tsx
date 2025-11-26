@@ -55,6 +55,9 @@ export default function InventoryPage() {
     reorderPoint: 0,
     stockQty: 0,
   });
+  const [itemPageSize, setItemPageSize] = useState(10);
+  const [productPageSize, setProductPageSize] = useState(10);
+  const [productEdits, setProductEdits] = useState<Record<number, Partial<typeof newProduct>>>({});
 
   useEffect(() => {
     fetchInventoryMovements();
@@ -274,7 +277,7 @@ export default function InventoryPage() {
         </Card>
 
         <Card>
-          <CardHeader className="space-y-2">
+         <CardHeader className="space-y-2">
             <CardTitle>Stock & Adjustments</CardTitle>
             <div className="flex flex-wrap gap-2">
               <Input
@@ -295,6 +298,15 @@ export default function InventoryPage() {
                   </option>
                 ))}
               </select>
+              <select
+                className="rounded-md border px-3 py-2 text-sm text-slate-700"
+                value={itemPageSize}
+                onChange={(e) => setItemPageSize(Number(e.target.value))}
+              >
+                {[10, 20, 50].map((n) => (
+                  <option key={n} value={n}>{n}/หน้า</option>
+                ))}
+              </select>
             </div>
           </CardHeader>
           <CardContent>
@@ -310,7 +322,7 @@ export default function InventoryPage() {
                 </tr>
               </THead>
               <TBody>
-                {filteredItems.map((it) => (
+                {filteredItems.slice(0, itemPageSize).map((it) => (
                   <tr key={it.id} className={it.stockQty <= it.reorderPoint ? "bg-rose-50" : ""}>
                     <TD>
                       <div className="font-semibold text-slate-900">{it.name}</div>
@@ -362,14 +374,38 @@ export default function InventoryPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Product Catalog</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <THead>
-              <tr>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <CardTitle>Product Catalog</CardTitle>
+              <div className="flex items-center gap-2 text-xs">
+                {Array.from(new Set(products.map((p) => p.category))).map((cat) => {
+                  const activeCount = products.filter((p) => p.category === cat && p.active).length;
+                  const hiddenCount = products.filter((p) => p.category === cat && !p.active).length;
+                  return (
+                    <div key={cat} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
+                      <span className="font-semibold text-slate-700">{cat}</span>
+                      <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white">On {activeCount}</span>
+                      <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">Hide {hiddenCount}</span>
+                    </div>
+                  );
+                })}
+                <select
+                  className="rounded-md border px-2 py-1 text-xs text-slate-700"
+                  value={productPageSize}
+                  onChange={(e) => setProductPageSize(Number(e.target.value))}
+                >
+                  {[10, 20, 50].map((n) => (
+                    <option key={n} value={n}>{n}/หน้า</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <THead>
+                <tr>
                 <TH>Image</TH>
                 <TH>Product</TH>
                 <TH>Category</TH>
@@ -378,39 +414,99 @@ export default function InventoryPage() {
                 <TH>Action</TH>
               </tr>
             </THead>
-            <TBody>
-              {products.map((p) => (
-                <tr key={p.id} className={!p.active ? "opacity-60" : ""}>
-                  <TD>
-                    <img src={p.imageUrl || 'https://placehold.co/80x60'} alt={p.name} className="h-12 w-16 rounded-md object-cover border" />
-                  </TD>
-                  <TD>
-                    <div className="font-semibold text-slate-900">{p.name}</div>
-                    <div className="text-xs text-slate-600">{p.sku}</div>
-                  </TD>
-                  <TD className="text-slate-700">{p.category}</TD>
-                  <TD className="font-semibold">฿ {p.price.toFixed(2)}</TD>
-                  <TD>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-800">
-                      {p.active ? "On shelf" : "Hidden"}
-                    </span>
-                  </TD>
-                  <TD>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => toggleProductActive(p.id, !p.active)}>
-                        {p.active ? "Hide" : "Unhide"}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => removeProduct(p.id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </TD>
-                </tr>
-              ))}
-            </TBody>
-          </Table>
-        </CardContent>
-      </Card>
+              <TBody>
+                {products.slice(0, productPageSize).map((p) => {
+                  const edits = productEdits[p.id] || {};
+                  const nameVal = edits.name ?? p.name;
+                  const catVal = edits.category ?? p.category;
+                  const priceVal = edits.price ?? p.price;
+                  const imageVal = edits.imageUrl ?? p.imageUrl ?? "";
+                  const activeVal = edits.active ?? p.active;
+                  return (
+                    <tr key={p.id} className={!p.active ? "opacity-70" : ""}>
+                      <TD>
+                        <img src={imageVal || 'https://placehold.co/80x60'} alt={nameVal} className="h-12 w-16 rounded-md object-cover border" />
+                        <Input
+                          className="mt-1 w-36"
+                          placeholder="Image URL"
+                          value={imageVal}
+                          onChange={(e) => setProductEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], imageUrl: e.target.value } }))}
+                        />
+                      </TD>
+                      <TD>
+                        <Input
+                          className="mb-1"
+                          value={nameVal}
+                          onChange={(e) => setProductEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], name: e.target.value } }))}
+                        />
+                        <div className="text-xs text-slate-600">{p.sku}</div>
+                      </TD>
+                      <TD className="text-slate-700">
+                        <Input
+                          value={catVal}
+                          onChange={(e) => setProductEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], category: e.target.value } }))}
+                        />
+                      </TD>
+                      <TD className="font-semibold">
+                        <Input
+                          type="number"
+                          value={priceVal}
+                          onChange={(e) => setProductEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], price: Number(e.target.value) } }))}
+                        />
+                      </TD>
+                      <TD>
+                        <div className="flex flex-col gap-1">
+                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${activeVal ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}>
+                            {activeVal ? "On shelf" : "Hide"}
+                          </span>
+                          <label className="flex items-center gap-1 text-xs text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={activeVal}
+                              onChange={(e) => setProductEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], active: e.target.checked } }))}
+                            />
+                            แสดงบน POS
+                          </label>
+                        </div>
+                      </TD>
+                      <TD>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={async () => {
+                              const payload = { ...p, ...productEdits[p.id] };
+                              await updateItem(p.id, {
+                                name: payload.name,
+                                costPerUnit: payload.costPerUnit ?? 0,
+                              });
+                              await updateProduct(p.id, {
+                                name: payload.name,
+                                category: payload.category,
+                                price: payload.price,
+                                imageUrl: payload.imageUrl,
+                                active: payload.active,
+                              });
+                              setProductEdits((prev) => ({ ...prev, [p.id]: {} }));
+                            }}
+                          >
+                            Save
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => toggleProductActive(p.id, !activeVal)}>
+                            {activeVal ? "Hide" : "Unhide"}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => removeProduct(p.id)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </TD>
+                    </tr>
+                  );
+                })}
+              </TBody>
+            </Table>
+          </CardContent>
+        </Card>
 
       <Card>
         <CardHeader>

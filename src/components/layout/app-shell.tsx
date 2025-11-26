@@ -95,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
             </div>
-            <nav className="hidden min-w-0 flex-1 items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-slate-800/80 px-2 py-1 text-sm shadow-inner shadow-black/10 sm:flex sm:w-auto sm:overflow-x-auto">
+            <nav className="hidden min-w-0 flex-1 items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-slate-800/80 px-2 py-1 text-sm shadow-inner shadow-black/10 sm:flex sm:w-auto sm:overflow-x-auto no-scrollbar">
               {navItems.map((item) => {
                 const active = pathname === item.href;
                 const Icon = item.icon;

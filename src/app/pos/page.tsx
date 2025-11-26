@@ -63,6 +63,7 @@ export default function PosPage() {
   const categories = ['All', ...new Set(products.map((p) => p.category))];
   const searchTerm = search.trim().toLowerCase();
   const filtered = products
+    .filter((p) => p.active) // ซ่อนสินค้าที่ hide ออกจาก POS
     .filter((p) => activeCategory === 'All' || p.category === activeCategory)
     .filter((p) => {
       if (!searchTerm) return true;
