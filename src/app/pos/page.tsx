@@ -25,6 +25,7 @@ export default function PosPage() {
   // ใช้ค่านี้เป็นตัวเลือก flow: 'paid' = จ่ายและรับทันที, 'unpaid' = จ่ายแล้วแต่ยังไม่รับ (เก็บไว้รอส่งมอบ)
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
   const [cashValue, setCashValue] = useState<string>('');
+  const [showSearch, setShowSearch] = useState<boolean>(false);
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
   const [showOpenBillConfirm, setShowOpenBillConfirm] = useState<boolean>(false);
   const [cartToast, setCartToast] = useState<number>(0);
@@ -277,19 +278,34 @@ export default function PosPage() {
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600 hidden sm:inline">แสดง {orderedProducts.length}</span>
-                <div className="relative">
-                  <Input
-                    placeholder="ค้นหา..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 w-40 md:w-56"
-                  />
-                  <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-500">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
+                  {orderedProducts.length}
+                </span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">
+                  {products.filter((p) => !p.active).length}
+                </span>
+                <div className="relative flex items-center gap-2">
+                  {showSearch && (
+                    <div className="absolute right-12 top-0">
+                      <Input
+                        placeholder="ค้นหา..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-48"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowSearch((v) => !v)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    aria-label="ค้นหา"
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18.5a7.5 7.5 0 006.15-3.85z" />
                     </svg>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
